@@ -1,7 +1,9 @@
 import axios from "axios";
 import { getTenantSlugFromHost } from "../utils/tenantUtils";
 
-const BASE_URL = "http://localhost:5000/api";
+// التعديل هنا: هيقرأ من إعدادات Vercel الأول، ولو ملقاش هيشتغل محلي
+const envUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const BASE_URL = envUrl.endsWith("/api") ? envUrl : `${envUrl}/api`;
 
 const api = axios.create({
   baseURL: BASE_URL,
