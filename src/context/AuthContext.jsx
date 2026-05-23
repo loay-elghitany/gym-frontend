@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import api from "../api/axios";
 import {
   getAuthToken,
@@ -13,54 +6,14 @@ import {
   clearAuthToken,
   parseJwtToken,
 } from "../utils/authHelpers";
+import {
+  normalizeAuthRole,
+  normalizeTenantInfo,
+  normalizeGamification,
+} from "./authUtils";
+import { AuthContext } from "./authContextValue";
 import { detectTenantFromLocation } from "../utils/tenantUtils";
 import { debugLog, debugError } from "../utils/debug";
-
-const normalizeAuthRole = (rawRole) => {
-  if (!rawRole) {
-    return null;
-  }
-
-  const roleString = String(rawRole).trim().toLowerCase();
-  if (roleString.includes("super") || roleString.includes("admin")) {
-    return "super_admin";
-  }
-  if (
-    roleString.includes("gym_owner") ||
-    roleString === "owner" ||
-    roleString.includes("owner")
-  ) {
-    return "gym_owner";
-  }
-  if (roleString.includes("reception")) {
-    return "receptionist";
-  }
-  if (roleString.includes("trainer")) {
-    return "trainer";
-  }
-  if (roleString.includes("member")) {
-    return "member";
-  }
-
-  return roleString;
-};
-
-const defaultAuthContextValue = {
-  user: null,
-  isAuthenticated: false,
-  loading: true,
-  userRole: null,
-  isAdmin: false,
-  tenant: null,
-  login: async () => {},
-  logout: () => {},
-};
-
-export const AuthContext = createContext(defaultAuthContextValue);
-
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -78,22 +31,21 @@ export const AuthProvider = ({ children }) => {
       if (typeof window !== "undefined") {
         localStorage.removeItem("tenant_slug");
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     setUser(null);
     setIsAuthenticated(false);
     setUserRole(null);
+    setTenant(null);
     setLoading(false);
 
-    // Redirect to login page
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }
   }, []);
 
   useEffect(() => {
-    // Ensure API response interceptor triggers logout on 401
     const responseInterceptorId = api.interceptors.response.use(
       (res) => res,
       (error) => {
@@ -109,11 +61,7 @@ export const AuthProvider = ({ children }) => {
       setAuthToken(token);
       debugLog("AuthContext:loadUser", "Token found, fetching profile");
 
-      // Attempt to decode token for role information. Be permissive if missing.
       const tokenPayload = parseJwtToken(token);
-      // Log token context to help debug backend shapes
-      // eslint-disable-next-line no-console
-      console.log("Decoded Token / User Role Context:", token, tokenPayload);
 
       const rawRole =
         tokenPayload?.role ||
@@ -127,18 +75,74 @@ export const AuthProvider = ({ children }) => {
       setUserRole(role);
       debugLog("AuthContext:loadUser", "Token decoded", { role, rawRole });
 
-      const response = await api.get("/auth/me");
-      if (!response?.data) {
+      const fallbackTenant = normalizeTenantInfo({
+        slug: tokenPayload?.tenantSlug || tokenPayload?.tenant?.slug,
+      });
+      if (fallbackTenant) {
+        setTenant(fallbackTenant);
+      }
+
+      let profile;
+      try {
+        const response = await api.get("/auth/me");
+        if (!response?.data) {
+          throw new Error("Unable to fetch user profile");
+        }
+
+        const fetchedProfile = response.data.data || response.data;
+        profile =
+          fetchedProfile && typeof fetchedProfile === "object"
+            ? {
+                ...fetchedProfile,
+                subscription:
+                  fetchedProfile.subscription &&
+                  typeof fetchedProfile.subscription === "object"
+                    ? { ...fetchedProfile.subscription }
+                    : fetchedProfile.subscription,
+                package:
+                  fetchedProfile.package &&
+                  typeof fetchedProfile.package === "object"
+                    ? { ...fetchedProfile.package }
+                    : fetchedProfile.package,
+                gamification: normalizeGamification(
+                  fetchedProfile.gamification,
+                ),
+              }
+            : fetchedProfile;
+      } catch (profileError) {
+        if (role === "super_admin") {
+          debugLog(
+            "AuthContext:loadUser",
+            "Super admin profile fetch failed, retaining auth",
+            { error: profileError?.message },
+          );
+          profile = {
+            name: tokenPayload?.name || tokenPayload?.email || "Super Admin",
+            email: tokenPayload?.email || null,
+            role: rawRole,
+          };
+        } else {
+          throw profileError;
+        }
+      }
+
+      if (!profile) {
         throw new Error("Unable to fetch user profile");
       }
 
-      // Support both { data: { data: user } } and { data: user }
-      const profile = response.data.data || response.data;
+      const profileTenant = normalizeTenantInfo(
+        profile?.tenant || profile?.tenantSlug || profile,
+      );
+      if (profileTenant) {
+        setTenant(profileTenant);
+      }
+
       setUser(profile);
       setIsAuthenticated(true);
       debugLog("AuthContext:loadUser", "User profile loaded", {
         role,
         userName: profile?.name,
+        tenant: profileTenant?.slug || fallbackTenant?.slug,
       });
     };
 
@@ -151,6 +155,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
         setUser(null);
         setUserRole(null);
+        setTenant(null);
         setLoading(false);
         return;
       }
@@ -163,15 +168,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       setLoading(false);
-
-      // cleanup interceptor on unmount
-      return () => {
-        try {
-          api.interceptors.response.eject(responseInterceptorId);
-        } catch (e) {
-          /* ignore */
-        }
-      };
     };
 
     initializeAuth();
@@ -190,12 +186,17 @@ export const AuthProvider = ({ children }) => {
     window.addEventListener("storage", handleStorageChange);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      try {
+        api.interceptors.response.eject(responseInterceptorId);
+      } catch {
+        /* ignore */
+      }
     };
   }, [isAuthenticated, logout]);
 
   const login = useCallback(
-    async (email, password) => {
-      const tenantSlug = tenant?.slug || null;
+    async (email, password, options = {}) => {
+      const tenantSlug = options?.tenantSlug || tenant?.slug || null;
       debugLog("AuthContext:login", "Attempting login", { email, tenantSlug });
 
       try {
@@ -205,11 +206,6 @@ export const AuthProvider = ({ children }) => {
           tenantSlug,
         });
 
-        // Support multiple backend shapes for the token:
-        // - response.data.token
-        // - response.data.data.token
-        // - response.data.user.token
-        // - response.data.accessToken
         const maybe = (obj, path) =>
           path.split(".").reduce((acc, key) => acc && acc[key], obj);
 
@@ -234,20 +230,16 @@ export const AuthProvider = ({ children }) => {
           throw new Error("Login response did not contain a token");
         }
 
-        // Normalize and persist token
         setAuthToken(token);
         try {
           if (typeof window !== "undefined") {
             localStorage.setItem("token", token);
           }
-        } catch (e) {
+        } catch {
           /* ignore storage errors */
         }
 
-        // Decode token to infer role when available, but don't block login
         const tokenPayload = parseJwtToken(token);
-        // eslint-disable-next-line no-console
-        console.log("Decoded Token / User Role Context:", token, tokenPayload);
 
         const rawRole =
           tokenPayload?.role ||
@@ -261,10 +253,59 @@ export const AuthProvider = ({ children }) => {
         setUserRole(role);
         debugLog("AuthContext:login", "Token decoded", { role, rawRole });
 
-        const profileResponse = await api.get("/auth/me");
-        const profile = profileResponse?.data?.data || profileResponse?.data;
-        if (!profile) {
-          throw new Error("Failed to load profile after login");
+        const loginTenant = normalizeTenantInfo({
+          slug: tokenPayload?.tenantSlug || tokenPayload?.tenant?.slug,
+        });
+        if (loginTenant) {
+          setTenant(loginTenant);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("tenant_slug", loginTenant.slug);
+          }
+        }
+
+        let profile = null;
+        try {
+          const profileResponse = await api.get("/auth/me");
+          profile = profileResponse?.data?.data || profileResponse?.data;
+          if (profile && typeof profile === "object") {
+            profile = {
+              ...profile,
+              subscription:
+                profile.subscription && typeof profile.subscription === "object"
+                  ? { ...profile.subscription }
+                  : profile.subscription,
+              package:
+                profile.package && typeof profile.package === "object"
+                  ? { ...profile.package }
+                  : profile.package,
+              gamification: normalizeGamification(profile.gamification),
+            };
+          }
+          if (!profile) {
+            throw new Error("Failed to load profile after login");
+          }
+        } catch (profileError) {
+          if (role === "super_admin") {
+            debugLog(
+              "AuthContext:login",
+              "Super admin profile fetch failed, preserving login state",
+              { error: profileError?.message },
+            );
+            profile = {
+              name: tokenPayload?.name || tokenPayload?.email || "Super Admin",
+              email: tokenPayload?.email || null,
+              role: rawRole,
+            };
+          } else {
+            throw profileError;
+          }
+        }
+
+        const profileTenant = normalizeTenantInfo(
+          profile?.tenant || profile?.tenantSlug || profile,
+        );
+        if (profileTenant) {
+          setTenant(profileTenant);
         }
 
         setUser(profile);
@@ -272,6 +313,7 @@ export const AuthProvider = ({ children }) => {
         debugLog("AuthContext:login", "Login completed", {
           role,
           userName: profile?.name,
+          tenant: profileTenant?.slug || loginTenant?.slug,
         });
         return profile;
       } catch (error) {
@@ -281,16 +323,17 @@ export const AuthProvider = ({ children }) => {
           if (typeof window !== "undefined") {
             localStorage.removeItem("token");
           }
-        } catch (e) {
+        } catch {
           /* ignore */
         }
         setUser(null);
         setIsAuthenticated(false);
         setUserRole(null);
+        setTenant(null);
         throw error;
       }
     },
-    [tenant, logout],
+    [tenant],
   );
 
   const value = useMemo(
@@ -307,12 +350,36 @@ export const AuthProvider = ({ children }) => {
         try {
           const resp = await api.get("/auth/me");
           const profile = resp?.data?.data || resp?.data || null;
-          if (profile) {
-            setUser(profile);
+          const retainedProfile =
+            profile && typeof profile === "object"
+              ? {
+                  ...profile,
+                  subscription:
+                    profile.subscription &&
+                    typeof profile.subscription === "object"
+                      ? { ...profile.subscription }
+                      : profile.subscription,
+                  package:
+                    profile.package && typeof profile.package === "object"
+                      ? { ...profile.package }
+                      : profile.package,
+                  gamification: normalizeGamification(profile.gamification),
+                }
+              : profile;
+          if (retainedProfile) {
+            setUser(retainedProfile);
             setIsAuthenticated(true);
+            const profileTenant = normalizeTenantInfo(
+              retainedProfile?.tenant ||
+                retainedProfile?.tenantSlug ||
+                retainedProfile,
+            );
+            if (profileTenant) {
+              setTenant(profileTenant);
+            }
           }
           return profile;
-        } catch (e) {
+        } catch {
           return null;
         }
       },

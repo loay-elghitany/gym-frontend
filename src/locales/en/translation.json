@@ -1,0 +1,75 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "members": "Members",
+    "subscriptions": "Subscriptions",
+    "reports": "Reports",
+    "checkins": "Check-ins",
+    "registerMember": "Register Member",
+    "classes": "Classes",
+    "inbodyRecords": "InBody Records",
+    "scanQr": "Scan QR",
+    "myPlans": "My Plans",
+    "profile": "Profile"
+  },
+  "header": {
+    "tenantWorkspace": "Tenant Workspace",
+    "teamDashboard": "Team Dashboard",
+    "activeTenant": "Active tenant",
+    "language": "Language"
+  },
+  "dashboard": {
+    "memberExperience": "Member experience",
+    "welcomeBack": "Welcome back to {{name}}",
+    "viewProfile": "View advanced profile",
+    "streakHint": "Keep your next workout streak going to unlock new badges.",
+    "subscriptionExpired": "Your subscription has expired. Renew now to keep training without interruption.",
+    "quickStats": "Quick stats",
+    "workoutsThisWeek": "Workouts this week",
+    "totalCheckIns": "Total check-ins",
+    "pointsEarned": "Points earned",
+    "upcomingGoals": "Upcoming goals",
+    "gymOccupancy": "Gym occupancy",
+    "currentGymStatus": "Current gym status",
+    "smartVisits": "Track live occupancy and discover peak attendance hours for smarter visits.",
+    "checkInNow": "Check in now",
+    "currentOccupancy": "Current occupancy",
+    "peopleInside": "people inside",
+    "live": "Live",
+    "peakHours": "Peak hours",
+    "myAchievements": "My Achievements",
+    "badgeHighlights": "Earned badges and consistency rewards",
+    "noBadges": "You haven’t earned badges yet. Keep checking in to unlock achievements.",
+    "unableToLoad": "Unable to load gym occupancy",
+    "consistencyBadge": "Consistency Badge",
+    "badgeDescription": "Checked in five times this week"
+  },
+  "button": {
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "checkingIn": "Checking in…"
+  },
+  "status": {
+    "expired": "expired",
+    "active": "active"
+  },
+  "common": {
+    "member": "Member"
+  },
+  "login": {
+    "workspace": "Gym SaaS Workspace",
+    "secureAccess": "Secure access for your team.",
+    "enterCredentials": "Enter your credentials to continue to {{tenant}}.",
+    "useCredentials": "Use your gym workspace credentials to access your dashboard.",
+    "welcomeBack": "Welcome back",
+    "signInContinue": "Sign in to continue",
+    "needHelp": "Need help? Contact your gym administrator for account access.",
+    "emailAddress": "Email address",
+    "password": "Password"
+  },
+  "language": {
+    "english": "English",
+    "arabic": "العربية"
+  }
+}

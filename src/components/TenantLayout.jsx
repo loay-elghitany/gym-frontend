@@ -1,28 +1,34 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useMemo } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/authContextValue";
+import { useTranslation } from "react-i18next";
+import api from "../api/axios";
 
 const roleNavItems = {
   gym_owner: [
-    { label: "Dashboard", path: "owner", icon: "home" },
-    { label: "Members", path: "members", icon: "users" },
-    { label: "Subscriptions", path: "subscriptions", icon: "credit-card" },
-    { label: "Reports", path: "reports", icon: "chart" },
+    { label: "nav.dashboard", path: "owner", icon: "home" },
+    { label: "nav.members", path: "members", icon: "users" },
+    { label: "nav.subscriptions", path: "subscriptions", icon: "credit-card" },
+    { label: "nav.reports", path: "reports", icon: "chart" },
+    { label: "nav.scanQr", path: "quick-scanner", icon: "qr" },
   ],
   receptionist: [
-    { label: "Dashboard", path: "reception", icon: "home" },
-    { label: "Check-ins", path: "checkins", icon: "check" },
-    { label: "Register Member", path: "register-member", icon: "user-plus" },
+    { label: "nav.dashboard", path: "reception", icon: "home" },
+    { label: "nav.checkins", path: "checkins", icon: "check" },
+    { label: "nav.registerMember", path: "register-member", icon: "user-plus" },
+    { label: "nav.scanQr", path: "quick-scanner", icon: "qr" },
   ],
   trainer: [
-    { label: "Dashboard", path: "trainer", icon: "home" },
-    { label: "Classes", path: "classes", icon: "calendar" },
-    { label: "InBody Records", path: "inbody", icon: "barbell" },
+    { label: "nav.dashboard", path: "trainer", icon: "home" },
+    { label: "nav.classes", path: "classes", icon: "calendar" },
+    { label: "nav.inbodyRecords", path: "inbody", icon: "barbell" },
+    { label: "nav.scanQr", path: "quick-scanner", icon: "qr" },
   ],
   member: [
-    { label: "Dashboard", path: "dashboard", icon: "home" },
-    { label: "My Plans", path: "my-plans", icon: "clipboard" },
-    { label: "Profile", path: "profile", icon: "user" },
+    { label: "nav.dashboard", path: "dashboard", icon: "home" },
+    { label: "nav.myPlans", path: "my-plans", icon: "clipboard" },
+    { label: "nav.profile", path: "profile", icon: "user" },
+    { label: "nav.leaderboard", path: "leaderboard", icon: "trophy" },
   ],
 };
 
@@ -86,10 +92,22 @@ function NavIcon({ type }) {
           <path d="M5 8h2v8H5V8Zm12 0h2v8h-2V8Zm-7 3h4v2h-4v-2Zm-4 1H2v2h2v-2Zm16 0h2v2h-2v-2Zm-1 4h-2v-2h2v2ZM9 4h6v2H9V4Z" />
         </svg>
       );
+    case "trophy":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden className={iconClasses}>
+          <path d="M6 3h12v2H6V3Zm3 4a3 3 0 0 0 6 0h2a1 1 0 0 1 1 1v3a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8a1 1 0 0 1 1-1h2Zm-2 8h10v2H7v-2Z" />
+        </svg>
+      );
     case "clipboard":
       return (
         <svg viewBox="0 0 24 24" aria-hidden className={iconClasses}>
           <path d="M7 3h10a2 2 0 0 1 2 2v2H5V5a2 2 0 0 1 2-2Zm-2 6h14v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9Zm4 2v2h6v-2H9Zm0 4v2h6v-2H9Z" />
+        </svg>
+      );
+    case "qr":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden className={iconClasses}>
+          <path d="M4 4h6v6H4V4Zm2 2v2h2V6H6Zm10-2h4v4h-4V4Zm2 2v0h0V6Zm-8 8h6v6h-6v-6Zm2 2v2h2v-2h-2Zm-8 8h4v-4H4v4Zm2-2h0v0h0v0Zm10 0h4v-4h-4v4Zm2-2v0h0v0Z" />
         </svg>
       );
     case "user":
@@ -105,11 +123,71 @@ function NavIcon({ type }) {
 
 export default function TenantLayout() {
   const { tenant, user, userRole, logout } = useAuth();
+  const { t, i18n } = useTranslation();
+
+  const [broadcasts, setBroadcasts] = useState([]);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(true);
+  const [telegramError, setTelegramError] = useState(null);
 
   const navItems = useMemo(() => {
     if (userRole && roleNavItems[userRole]) return roleNavItems[userRole];
     return roleNavItems.member;
   }, [userRole]);
+
+  useEffect(() => {
+    const loadBroadcasts = async () => {
+      try {
+        const response = await api.get("/broadcasts");
+        setBroadcasts(response.data?.data || []);
+      } catch (error) {
+        console.warn("Unable to load broadcasts", error);
+      }
+    };
+
+    const loadTelegramStatus = async () => {
+      setTelegramLoading(true);
+      setTelegramError(null);
+      try {
+        const response = await api.get("/users/telegram-status");
+        setTelegramConnected(Boolean(response.data?.data?.connected));
+      } catch (error) {
+        setTelegramError(
+          error?.response?.data?.message ||
+            error?.message ||
+            "Unable to determine Telegram status",
+        );
+      } finally {
+        setTelegramLoading(false);
+      }
+    };
+
+    loadBroadcasts();
+    loadTelegramStatus();
+  }, []);
+
+  const handleDisconnectTelegram = async () => {
+    setTelegramLoading(true);
+    setTelegramError(null);
+    try {
+      await api.post("/users/telegram-disconnect");
+      setTelegramConnected(false);
+    } catch (error) {
+      setTelegramError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to disconnect Telegram",
+      );
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
+  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  const telegramLink =
+    telegramBotUsername && user?._id
+      ? `https://t.me/${telegramBotUsername}?start=${user._id}`
+      : null;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -144,29 +222,89 @@ export default function TenantLayout() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
                       <NavIcon type={item.icon} />
                     </span>
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </NavLink>
                 </li>
               ))}
             </ul>
           </nav>
 
-          <div className="mt-8 flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {user?.name || "Team Member"}
-              </p>
-              <p className="text-xs text-slate-500">
-                {friendlyRoleLabel[userRole] || "User"}
-              </p>
+          <div className="mt-8 space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {user?.name || "Team Member"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {friendlyRoleLabel[userRole] || "User"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                {t("button.signOut")}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              Sign out
-            </button>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                Notification settings
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Connect Telegram to receive real-time gym alerts and account
+                updates.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  {telegramLoading ? (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                      Checking status...
+                    </span>
+                  ) : telegramConnected ? (
+                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      Not connected
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {!telegramConnected ? (
+                    <a
+                      href={telegramLink || "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700"
+                    >
+                      Connect Telegram
+                    </a>
+                  ) : null}
+                  {telegramConnected ? (
+                    <button
+                      type="button"
+                      disabled={telegramLoading}
+                      onClick={handleDisconnectTelegram}
+                      className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+                    >
+                      Disconnect
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {telegramError ? (
+                <p className="mt-3 text-sm text-rose-600">{telegramError}</p>
+              ) : null}
+              {!telegramLink && !telegramLoading ? (
+                <p className="mt-3 text-sm text-slate-500">
+                  Telegram bot username is not configured in the frontend
+                  environment.
+                </p>
+              ) : null}
+            </div>
           </div>
         </aside>
 
@@ -182,29 +320,72 @@ export default function TenantLayout() {
                 </h1>
               </div>
 
-              <div className="mt-2 flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                <span className="truncate">
-                  {user?.email || "user@yourgym.com"}
-                </span>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <span className="truncate">
+                    {user?.email || "user@yourgym.com"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <label htmlFor="language-select" className="text-slate-500">
+                    {t("header.language")}
+                  </label>
+                  <select
+                    id="language-select"
+                    value={i18n.language}
+                    onChange={(event) =>
+                      i18n.changeLanguage(event.target.value)
+                    }
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                  >
+                    <option value="en">{t("language.english")}</option>
+                    <option value="ar">{t("language.arabic")}</option>
+                  </select>
+                </div>
               </div>
             </div>
           </header>
 
           <main className="flex-1 p-6">
             <div className="mx-auto w-full max-w-7xl">
+              {broadcasts.length > 0 ? (
+                <div className="mb-6 space-y-3">
+                  {broadcasts.map((broadcast) => (
+                    <div
+                      key={broadcast._id}
+                      className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {broadcast.title}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            {broadcast.message}
+                          </p>
+                        </div>
+                        <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+                          {broadcast.audience?.toUpperCase() || "ALL"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
                 <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">
-                        Core insights
+                        {t("header.teamDashboard")}
                       </p>
                       <p className="text-sm text-slate-500">
-                        Fast access to your workspace dashboards and reports.
+                        {t("header.tenantWorkspace")}
                       </p>
                     </div>
                     <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
-                      Active tenant
+                      {t("header.activeTenant")}
                     </span>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 
-export default function AIFinancialInsights() {
+export default function AIFinancialInsights({ expectedRevenue }) {
   const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -11,7 +11,7 @@ export default function AIFinancialInsights() {
       try {
         const res = await api.get("/owner/metrics/forecast");
         setForecast(res?.data?.data || null);
-      } catch (err) {
+      } catch {
         setForecast(null);
       } finally {
         setLoading(false);
@@ -19,9 +19,6 @@ export default function AIFinancialInsights() {
     };
     fetchForecast();
   }, []);
-
-  const avg = (arr) =>
-    arr?.length ? arr.reduce((s, x) => s + x.expected, 0) / arr.length : 0;
 
   const alertText =
     forecast && forecast.renewalRate < 0.5
@@ -43,7 +40,12 @@ export default function AIFinancialInsights() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-slate-500">Expected 30d revenue</div>
             <div className="text-xl font-semibold text-slate-950">
-              ${Math.round(forecast.expectedRenewals)}
+              $
+              {Math.round(
+                expectedRevenue !== undefined
+                  ? expectedRevenue
+                  : forecast?.expectedRenewals || 0,
+              )}
             </div>
           </div>
           <div className="mt-3 h-28 w-full overflow-hidden">

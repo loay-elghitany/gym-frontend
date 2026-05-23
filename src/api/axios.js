@@ -17,15 +17,21 @@ api.interceptors.request.use(
     try {
       const token =
         typeof window !== "undefined" && localStorage.getItem("token");
-      const tenantSlug =
+      let tenantSlug =
         typeof window !== "undefined"
           ? getTenantSlugFromHost(window.location.hostname)
           : null;
+      const savedTenantSlug =
+        typeof window !== "undefined" && localStorage.getItem("tenant_slug");
+
+      if (!tenantSlug && savedTenantSlug) {
+        tenantSlug = savedTenantSlug;
+      }
 
       if (!config.headers) config.headers = {};
       if (token) config.headers.Authorization = `Bearer ${token}`;
       if (tenantSlug) config.headers["x-tenant-slug"] = tenantSlug;
-    } catch (e) {
+    } catch {
       // ignore in SSR or unusual environments
     }
     return config;

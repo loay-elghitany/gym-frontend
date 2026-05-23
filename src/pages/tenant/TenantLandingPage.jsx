@@ -1,4 +1,4 @@
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authContextValue";
 
 export default function TenantLandingPage() {
   const { tenant } = useAuth();
@@ -27,10 +27,16 @@ export default function TenantLandingPage() {
               >
                 Sign in to your gym
               </a>
-              <p className="text-sm text-slate-500">
-                Access owner, staff, and member dashboards with a single login.
-              </p>
+              <a
+                href="/admin-login"
+                className="text-sm font-semibold text-slate-700 underline transition hover:text-slate-900"
+              >
+                Super Admin login
+              </a>
             </div>
+            <p className="mt-4 text-sm text-slate-500">
+              Access owner, staff, and member dashboards with a single login.
+            </p>
           </div>
 
           <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

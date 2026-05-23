@@ -18,7 +18,7 @@ export default function SmoothieBar() {
       try {
         const res = await api.get("/wallet/balance");
         setBalance(res?.data?.data?.balance || 0);
-      } catch (err) {
+      } catch {
         setBalance(0);
       } finally {
         setLoading(false);
@@ -36,8 +36,8 @@ export default function SmoothieBar() {
       });
       setBalance(res?.data?.data?.balance ?? balance - product.price);
       alert("Order placed — pick it up at the bar!");
-    } catch (err) {
-      alert(err?.response?.data?.message || "Unable to place order");
+    } catch {
+      alert("Unable to place order");
     } finally {
       setOrdering(false);
     }

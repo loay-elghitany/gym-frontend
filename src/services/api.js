@@ -25,7 +25,7 @@ if (!API_BASE_URL && import.meta.env.PROD) {
 if (API_BASE_URL) {
   try {
     new URL(API_BASE_URL);
-  } catch (e) {
+  } catch {
     console.error(
       "CRITICAL: VITE_API_BASE_URL is not a valid URL:",
       API_BASE_URL,
@@ -73,9 +73,10 @@ api.interceptors.request.use(
     const requestUrl = String(config.url || "").toLowerCase();
     const isAuthEndpoint =
       /\/(patients|doctors|secretaries)\/(login|register)/i.test(requestUrl);
-    const isAdminEndpoint = /(^\/?admin(\/|$))|(^\/?api\/admin(\/|$))/i.test(
-      requestUrl,
-    );
+    const isAdminEndpoint =
+      /(^\/?admin(\/|$))|(^\/?api\/admin(\/|$))|(^\/?superadmin(\/|$))|(^\/?api\/superadmin(\/|$))/i.test(
+        requestUrl,
+      );
 
     if (isAuthEndpoint) {
       if (import.meta.env.DEV) {

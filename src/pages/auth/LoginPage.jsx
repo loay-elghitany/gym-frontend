@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "../../context/authContextValue";
+import { buildTenantDashboardPath } from "../../utils/tenantUtils";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -10,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const isSuperAdminLogin = location.pathname === "/admin-login";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -17,11 +20,46 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const profile = await login(email, password, {
+        tenantSlug: isSuperAdminLogin ? "system" : undefined,
+      });
+
+      const userRole = String(profile?.role || "")
+        .trim()
+        .toLowerCase();
+      const isSuperAdminUser =
+        userRole === "superadmin" ||
+        userRole === "super_admin" ||
+        userRole.includes("super") ||
+        userRole.includes("admin");
+      const isGymOwnerUser =
+        userRole === "gymowner" ||
+        userRole === "gym_owner" ||
+        userRole === "owner" ||
+        userRole.includes("owner");
+      const tenantSlug =
+        profile?.tenant?.slug || profile?.tenantSlug || tenant?.slug || null;
+
+      if (isSuperAdminUser) {
+        navigate("/admin/dashboard", { replace: true });
+        return;
+      }
+      if (isGymOwnerUser && tenantSlug) {
+        navigate(buildTenantDashboardPath(tenantSlug), { replace: true });
+        return;
+      }
+      if (isGymOwnerUser) {
+        navigate("/owner", { replace: true });
+        return;
+      }
 
       const returnTo = location.state?.from?.pathname;
       const destination =
-        returnTo && returnTo !== "/login" ? returnTo : "/dashboard";
+        isSuperAdminLogin || isSuperAdminUser
+          ? "/admin/dashboard"
+          : returnTo && returnTo !== "/login"
+            ? returnTo
+            : "/dashboard";
 
       navigate(destination, { replace: true });
     } catch (loginError) {
@@ -35,21 +73,23 @@ export default function LoginPage() {
     }
   };
 
+  const { t } = useTranslation();
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-12 sm:px-8 lg:flex-row lg:items-center lg:gap-12">
         <section className="mb-10 max-w-xl lg:mb-0 lg:flex-1">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-[0_30px_60px_-30px_rgba(15,23,42,0.85)] backdrop-blur-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-300/90">
-              Gym SaaS Workspace
+              {t("login.workspace")}
             </p>
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Secure access for your team.
+              {t("login.secureAccess")}
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
               {tenant?.displayName
-                ? `Enter your credentials to continue to ${tenant.displayName}.`
-                : "Log in to manage your fitness workspace, schedules, and members with confidence."}
+                ? t("login.enterCredentials", { tenant: tenant.displayName })
+                : t("login.useCredentials")}
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -82,17 +122,21 @@ export default function LoginPage() {
                 Welcome back
               </p>
               <h2 className="text-3xl font-semibold text-white">
-                Sign in to continue
+                {isSuperAdminLogin
+                  ? "Super Admin sign in"
+                  : "Sign in to continue"}
               </h2>
               <p className="text-sm text-slate-400">
-                Use your gym workspace credentials to access your dashboard.
+                {isSuperAdminLogin
+                  ? "Enter your platform admin credentials to access the Super Admin dashboard."
+                  : t("login.useCredentials")}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               <div>
                 <label className="block text-sm font-medium text-slate-300">
-                  Email address
+                  {t("login.emailAddress")}
                 </label>
                 <input
                   type="email"
@@ -105,7 +149,7 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300">
-                  Password
+                  {t("login.password")}
                 </label>
                 <input
                   type="password"
@@ -127,7 +171,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="inline-flex w-full items-center justify-center rounded-3xl bg-gradient-to-r from-sky-500 via-sky-400 to-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/20 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Signing in…" : "Sign in"}
+                {loading ? t("button.signingIn") : t("button.signIn")}
               </button>
             </form>
 

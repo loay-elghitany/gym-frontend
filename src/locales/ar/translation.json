@@ -1,0 +1,75 @@
+{
+  "nav": {
+    "dashboard": "لوحة القيادة",
+    "members": "الأعضاء",
+    "subscriptions": "الاشتراكات",
+    "reports": "التقارير",
+    "checkins": "تسجيل الدخول",
+    "registerMember": "تسجيل عضو",
+    "classes": "الفصول",
+    "inbodyRecords": "سجلات InBody",
+    "scanQr": "مسح رمز QR",
+    "myPlans": "خططي",
+    "profile": "الملف الشخصي"
+  },
+  "header": {
+    "tenantWorkspace": "مساحة المستأجر",
+    "teamDashboard": "لوحة فريق العمل",
+    "activeTenant": "المستأجر النشط",
+    "language": "اللغة"
+  },
+  "dashboard": {
+    "memberExperience": "تجربة العضو",
+    "welcomeBack": "مرحبًا بعودتك إلى {{name}}",
+    "viewProfile": "عرض الملف الشخصي المتقدم",
+    "streakHint": "حافظ على سلسلة التدريبات الخاصة بك لفتح شارات جديدة.",
+    "subscriptionExpired": "انتهت صلاحية الاشتراك الخاص بك. جدد الآن لمتابعة التدريب دون انقطاع.",
+    "quickStats": "إحصائيات سريعة",
+    "workoutsThisWeek": "التدريبات هذا الأسبوع",
+    "totalCheckIns": "إجمالي تسجيلات الدخول",
+    "pointsEarned": "النقاط المكتسبة",
+    "upcomingGoals": "أهداف قادمة",
+    "gymOccupancy": "شغل الصالة",
+    "currentGymStatus": "حالة الصالة الحالية",
+    "smartVisits": "تتبع الحضور الذكي لمعرفة ساعات الذروة لزيارة أفضل.",
+    "checkInNow": "تسجيل الدخول الآن",
+    "currentOccupancy": "الشغل الحالي",
+    "peopleInside": "أشخاص داخل",
+    "live": "مباشر",
+    "peakHours": "ساعات الذروة",
+    "myAchievements": "إنجازاتي",
+    "badgeHighlights": "البطاقات التي حصلت عليها والمكافآت الثابتة",
+    "noBadges": "لم تكسب أي شارات بعد. استمر في تسجيل الدخول لفتح الإنجازات.",
+    "unableToLoad": "تعذر تحميل حالة الصالة",
+    "consistencyBadge": "شارة الالتزام",
+    "badgeDescription": "تسجيل الدخول خمس مرات هذا الأسبوع"
+  },
+  "button": {
+    "signOut": "تسجيل الخروج",
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جاري تسجيل الدخول…",
+    "checkingIn": "جاري تسجيل الدخول…"
+  },
+  "status": {
+    "expired": "منتهي",
+    "active": "نشط"
+  },
+  "common": {
+    "member": "عضو"
+  },
+  "login": {
+    "workspace": "مساحة Gym SaaS",
+    "secureAccess": "وصول آمن لفريقك.",
+    "enterCredentials": "أدخل بياناتك للمتابعة إلى {{tenant}}.",
+    "useCredentials": "استخدم بيانات اعتماد الصالة الرياضية للوصول إلى لوحة التحكم.",
+    "welcomeBack": "مرحبًا بعودتك",
+    "signInContinue": "سجل الدخول للمتابعة",
+    "needHelp": "بحاجة إلى مساعدة؟ تواصل مع مسؤول الصالة الرياضي.",
+    "emailAddress": "البريد الإلكتروني",
+    "password": "كلمة المرور"
+  },
+  "language": {
+    "english": "English",
+    "arabic": "العربية"
+  }
+}

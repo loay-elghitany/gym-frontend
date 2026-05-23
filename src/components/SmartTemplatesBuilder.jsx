@@ -1,15 +1,97 @@
-export default function SmartTemplatesBuilder() {
-  const templates = [
-    { name: "Strength Microcycle", members: 12, status: "Active" },
-    { name: "Recovery Blast", members: 8, status: "Ready" },
-    { name: "Fat Loss Focus", members: 14, status: "In use" },
-  ];
+import { useEffect, useState } from "react";
+import api from "../api/axios";
+import useBodyScrollLock from "../hooks/useBodyScrollLock";
 
-  const assignments = [
-    { member: "Ava P.", template: "Strength Microcycle", nextSession: "Mon" },
-    { member: "Leo W.", template: "Recovery Blast", nextSession: "Tue" },
-    { member: "Noah S.", template: "Fat Loss Focus", nextSession: "Thu" },
-  ];
+export default function SmartTemplatesBuilder() {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [newExercises, setNewExercises] = useState([
+    { name: "", sets: "", reps: "" },
+  ]);
+  const [newDietNotes, setNewDietNotes] = useState([""]);
+  const [saving, setSaving] = useState(false);
+  const [assignments] = useState([]);
+
+  const loadTemplates = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/trainer/templates");
+      const data = res?.data?.data || [];
+      setTemplates(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Unable to load trainer templates", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadTemplates();
+  }, []);
+
+  const openModal = () => setModalOpen(true);
+  const closeModal = () => {
+    setModalOpen(false);
+    setTemplateName("");
+    setNewExercises([{ name: "", sets: "", reps: "" }]);
+    setNewDietNotes([""]);
+    setSaving(false);
+  };
+
+  useBodyScrollLock(modalOpen);
+
+  const updateExercise = (index, field, value) => {
+    setNewExercises((prev) =>
+      prev.map((exercise, idx) =>
+        idx === index ? { ...exercise, [field]: value } : exercise,
+      ),
+    );
+  };
+
+  const removeExercise = (index) => {
+    setNewExercises((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const addExercise = () => {
+    setNewExercises((prev) => [...prev, { name: "", sets: "", reps: "" }]);
+  };
+
+  const updateDietNote = (index, value) => {
+    setNewDietNotes((prev) =>
+      prev.map((note, idx) => (idx === index ? value : note)),
+    );
+  };
+
+  const addDietNote = () => {
+    setNewDietNotes((prev) => [...prev, ""]);
+  };
+
+  const removeDietNote = (index) => {
+    setNewDietNotes((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleCreateTemplate = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+
+    const payload = {
+      templateName: templateName.trim(),
+      exercises: newExercises.filter((exercise) => exercise.name.trim()),
+      meals: newDietNotes.filter((note) => note.trim()),
+    };
+
+    try {
+      await api.post("/trainer/templates", payload);
+      closeModal();
+      await loadTemplates();
+    } catch (error) {
+      console.error("Unable to create trainer template", error);
+      setSaving(false);
+    }
+  };
 
   return (
     <section className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -27,36 +109,53 @@ export default function SmartTemplatesBuilder() {
           </p>
         </div>
 
-        <button className="inline-flex items-center justify-center rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
+        <button
+          onClick={openModal}
+          className="inline-flex items-center justify-center rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          type="button"
+        >
           Create new template
         </button>
       </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-6">
+        <div className="space-y-4 rounded-4xl border border-slate-200 bg-slate-50 p-6">
           <div className="rounded-3xl bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-950">
               Template library
             </p>
             <div className="mt-5 space-y-3">
-              {templates.map((template) => (
-                <div
-                  key={template.name}
-                  className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3"
-                >
-                  <div>
-                    <p className="font-semibold text-slate-900">
-                      {template.name}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      {template.members} members
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-900">
-                    {template.status}
-                  </span>
+              {loading ? (
+                <div className="text-sm text-slate-500">
+                  Loading templates...
                 </div>
-              ))}
+              ) : templates.length ? (
+                templates.map((template) => (
+                  <div
+                    key={template._id}
+                    className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {template.templateName}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {template.exercises?.length || 0} exercises •{" "}
+                        {template.meals?.length || 0} meals
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-900">
+                      {template.createdAt
+                        ? new Date(template.createdAt).toLocaleDateString()
+                        : "Saved"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-slate-500">
+                  No saved templates yet.
+                </div>
+              )}
             </div>
           </div>
 
@@ -69,40 +168,198 @@ export default function SmartTemplatesBuilder() {
               your roster.
             </p>
             <div className="mt-5 space-y-3">
-              <button className="w-full rounded-3xl bg-white px-4 py-3 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-100">
-                Strength Microcycle → start Monday
-              </button>
-              <button className="w-full rounded-3xl bg-white px-4 py-3 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-100">
-                Recovery Blast → assign to whole yoga cohort
+              <button
+                className="w-full rounded-3xl bg-white px-4 py-3 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-100"
+                type="button"
+              >
+                Quick assign actions are available once members are added.
               </button>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.32em] text-slate-600">
             Live assignments
           </p>
           <div className="mt-5 space-y-4">
-            {assignments.map((assignment) => (
-              <div
-                key={assignment.member}
-                className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"
-              >
-                <p className="font-semibold text-slate-950">
-                  {assignment.member}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {assignment.template}
-                </p>
-                <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Next session: {assignment.nextSession}
-                </p>
+            {assignments.length ? (
+              assignments.map((assignment) => (
+                <div
+                  key={assignment.member}
+                  className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"
+                >
+                  <p className="font-semibold text-slate-950">
+                    {assignment.member}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {assignment.template}
+                  </p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Next session: {assignment.nextSession}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                No active assignments yet.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
+
+      {modalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-4xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-950">
+                  Create new template
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Add the template name, exercises, and diet notes to save it
+                  for trainers.
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                type="button"
+                className="rounded-full bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTemplate} className="mt-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-900">
+                  Template name
+                </label>
+                <input
+                  value={templateName}
+                  onChange={(event) => setTemplateName(event.target.value)}
+                  className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                  placeholder="Example: Lean Muscle Plan"
+                  required
+                />
+              </div>
+
+              <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Exercises
+                  </p>
+                  <button
+                    onClick={addExercise}
+                    type="button"
+                    className="rounded-3xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Add exercise
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {newExercises.map((exercise, index) => (
+                    <div
+                      key={index}
+                      className="grid gap-3 rounded-3xl bg-white p-4 shadow-sm sm:grid-cols-[1.5fr_1fr_1fr_auto]"
+                    >
+                      <input
+                        value={exercise.name}
+                        onChange={(event) =>
+                          updateExercise(index, "name", event.target.value)
+                        }
+                        className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        placeholder="Exercise name"
+                        required
+                      />
+                      <input
+                        value={exercise.sets}
+                        onChange={(event) =>
+                          updateExercise(index, "sets", event.target.value)
+                        }
+                        className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        placeholder="Sets"
+                        required
+                      />
+                      <input
+                        value={exercise.reps}
+                        onChange={(event) =>
+                          updateExercise(index, "reps", event.target.value)
+                        }
+                        className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        placeholder="Reps"
+                        required
+                      />
+                      <button
+                        onClick={() => removeExercise(index)}
+                        type="button"
+                        className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Diet notes
+                  </p>
+                  <button
+                    onClick={addDietNote}
+                    type="button"
+                    className="rounded-3xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Add note
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {newDietNotes.map((note, index) => (
+                    <div key={index} className="flex gap-3">
+                      <input
+                        value={note}
+                        onChange={(event) =>
+                          updateDietNote(index, event.target.value)
+                        }
+                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                        placeholder="Diet guidance or meal note"
+                        required
+                      />
+                      <button
+                        onClick={() => removeDietNote(index)}
+                        type="button"
+                        className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  onClick={closeModal}
+                  type="button"
+                  className="rounded-3xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save template"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -6,6 +6,7 @@ export default function ChurnRadarPanel() {
   const [loading, setLoading] = useState(true);
   const [notifyMessage, setNotifyMessage] = useState(null);
   const [requestInProgress, setRequestInProgress] = useState(false);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const fetchRisk = async () => {
@@ -13,7 +14,7 @@ export default function ChurnRadarPanel() {
       try {
         const response = await api.get("/churn-radar?days=10");
         setRiskData(response?.data?.data || null);
-      } catch (error) {
+      } catch {
         setRiskData({ count: 0, members: [] });
       } finally {
         setLoading(false);
@@ -26,7 +27,7 @@ export default function ChurnRadarPanel() {
     setRequestInProgress(true);
     setNotifyMessage(null);
     try {
-      const res = await api.post("/churn-radar/notify", { memberId });
+      const res = await api.post(`/owner/reports/notify/${memberId}`);
       setNotifyMessage(res?.data?.message || "Notification sent.");
     } catch (err) {
       setNotifyMessage(
@@ -151,16 +152,17 @@ export default function ChurnRadarPanel() {
                 <li>Loading members...</li>
               ) : (
                 riskData?.members?.slice(0, 3).map((member) => {
-                  const absentDays = member.lastAttendanceAt
-                    ? Math.max(
-                        10,
-                        Math.floor(
-                          (Date.now() -
-                            new Date(member.lastAttendanceAt).getTime()) /
-                            (1000 * 60 * 60 * 24),
-                        ),
-                      )
-                    : 10;
+                  const absentDays =
+                    member.lastAttendanceAt && now
+                      ? Math.max(
+                          10,
+                          Math.floor(
+                            (now -
+                              new Date(member.lastAttendanceAt).getTime()) /
+                              (1000 * 60 * 60 * 24),
+                          ),
+                        )
+                      : 10;
                   return (
                     <li
                       key={member._id}

@@ -12,4 +12,13 @@
   body::selection {
     @apply bg-sky-200 text-slate-950;
   }
+
+  html[dir="rtl"] {
+    direction: rtl;
+    unicode-bidi: embed;
+  }
+
+  body.modal-open {
+    overflow: hidden;
+  }
 }

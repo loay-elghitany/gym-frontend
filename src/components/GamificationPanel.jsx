@@ -36,7 +36,6 @@ const badgeDefinitions = (user) => {
 
 export default function GamificationPanel({ user }) {
   const streak = user?.gamification?.attendanceStreak || 0;
-  const workoutCount = user?.attendanceHistory?.length || 0;
   const badges = useMemo(() => badgeDefinitions(user || {}), [user]);
   const progressPercent = Math.min(Math.round((streak / 20) * 100), 100);
 

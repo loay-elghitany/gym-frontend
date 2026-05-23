@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authContextValue";
 import ChurnRadarPanel from "../../components/ChurnRadarPanel";
 import AIFinancialInsights from "../../components/AIFinancialInsights";
 

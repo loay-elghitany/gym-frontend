@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authContextValue";
 import api from "../api/axios";
 
 export default function AdvancedMemberProfile() {

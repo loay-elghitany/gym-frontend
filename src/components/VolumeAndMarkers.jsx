@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authContextValue";
 
 export default function VolumeAndMarkers({ userId }) {
   const { user } = useAuth();
@@ -11,7 +11,7 @@ export default function VolumeAndMarkers({ userId }) {
       try {
         const res = await api.get(`/workoutlogs?userId=${userId || user?._id}`);
         setLogs(res?.data?.data?.logs || []);
-      } catch (err) {
+      } catch {
         setLogs([]);
       }
     };

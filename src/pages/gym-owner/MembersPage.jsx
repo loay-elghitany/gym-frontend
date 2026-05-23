@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import api from "../../api/axios";
+import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 
 const roleOptions = [
   { value: "member", label: "Member" },
@@ -16,37 +17,60 @@ export default function MembersPage() {
     email: "",
     password: "",
     role: "member",
+    packageId: "",
   });
+
+  useBodyScrollLock(modalOpen);
+  const [packages, setPackages] = useState([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  const fetchMembers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const response = await api.get("/users");
-      console.log("Fetched Users Raw Response:", response.data);
-      const data = response?.data?.data?.users || response?.data?.users || [];
-      setMembers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to load members",
-      );
-    } finally {
-      setLoading(false);
-    }
+      try {
+        const response = await api.get("/users");
+        const data = response?.data?.data?.users || response?.data?.users || [];
+        setMembers(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to load members",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMembers();
   }, []);
 
   useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
+    const fetchPackages = async () => {
+      try {
+        const response = await api.get("/owner/packages");
+        const data = response?.data?.data || [];
+        setPackages(Array.isArray(data) ? data : []);
+      } catch {
+        setPackages([]);
+      }
+    };
+
+    fetchPackages();
+  }, []);
 
   const openModal = () => {
     setSubmitError(null);
-    setForm({ name: "", email: "", password: "", role: "member" });
+    setForm({
+      name: "",
+      email: "",
+      password: "",
+      role: "member",
+      packageId: "",
+    });
     setModalOpen(true);
   };
 
@@ -65,12 +89,18 @@ export default function MembersPage() {
     setSubmitError(null);
 
     try {
-      const response = await api.post("/users", {
+      const payload = {
         name: form.name,
         email: form.email,
         password: form.password,
         role: form.role,
-      });
+      };
+
+      if (form.role === "member") {
+        payload.packageId = form.packageId;
+      }
+
+      const response = await api.post("/users", payload);
 
       const added = response?.data?.data || response?.data;
       if (added) {
@@ -225,9 +255,11 @@ export default function MembersPage() {
                             {member.email || "—"}
                           </td>
                           <td className="whitespace-nowrap px-4 py-4 text-slate-600">
-                            {new Date(
-                              member.createdAt || member.joinedAt || Date.now(),
-                            ).toLocaleDateString()}
+                            {member.createdAt || member.joinedAt
+                              ? new Date(
+                                  member.createdAt || member.joinedAt,
+                                ).toLocaleDateString()
+                              : "Unknown"}
                           </td>
                           <td className="whitespace-nowrap px-4 py-4">
                             <span
@@ -255,7 +287,7 @@ export default function MembersPage() {
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 px-4 py-8">
-          <div className="w-full max-w-2xl rounded-[2rem] bg-white p-8 shadow-2xl shadow-slate-900/10">
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[2rem] bg-white p-8 shadow-2xl shadow-slate-900/10">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold text-slate-950">
@@ -330,6 +362,33 @@ export default function MembersPage() {
                   </select>
                 </label>
               </div>
+
+              {form.role === "member" ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Select Membership Package
+                    <select
+                      name="packageId"
+                      value={form.packageId}
+                      onChange={handleChange}
+                      required
+                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                    >
+                      <option value="" disabled>
+                        Choose a package
+                      </option>
+                      {packages.map((pkg) => (
+                        <option
+                          key={pkg._id || pkg.id}
+                          value={pkg._id || pkg.id}
+                        >
+                          {pkg.name || pkg.packageType || "Untitled package"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
 
               {submitError ? (
                 <div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">

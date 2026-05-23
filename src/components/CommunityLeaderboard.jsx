@@ -13,7 +13,7 @@ export default function CommunityLeaderboard() {
         setChallenges(res?.data?.data?.challenges || []);
         if (res?.data?.data?.challenges?.[0])
           setSelected(res.data.data.challenges[0]._id);
-      } catch (err) {
+      } catch {
         setChallenges([]);
       }
     };
@@ -26,7 +26,7 @@ export default function CommunityLeaderboard() {
       try {
         const res = await api.get(`/challenges/${selected}/leaderboard`);
         setLeaderboard(res?.data?.data?.leaderboard || []);
-      } catch (err) {
+      } catch {
         setLeaderboard([]);
       }
     };

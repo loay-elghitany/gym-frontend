@@ -1,12 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 
 export default function TrainerPlans() {
   const [members, setMembers] = useState([]);
+  const [memberSearch, setMemberSearch] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [exercisesText, setExercisesText] = useState("");
-  const [dietNotesText, setDietNotesText] = useState("");
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateName, setTemplateName] = useState("");
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [exercises, setExercises] = useState([
+    { name: "", sets: "", reps: "", notes: "" },
+  ]);
+
+  useBodyScrollLock(templateModalOpen);
+  const [meals, setMeals] = useState([{ mealName: "", description: "" }]);
   const [assigned, setAssigned] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,29 +42,161 @@ export default function TrainerPlans() {
     fetchMembers();
   }, []);
 
-  const parseExercises = (text) => {
-    // Simple parser: each line -> name | sets x reps | notes
-    return text
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const parts = line.split("|").map((p) => p.trim());
-        return {
-          name: parts[0],
-          sets: parts[1] ? Number(parts[1].split("x")[0]) : undefined,
-          reps: parts[1] ? parts[1].split("x")[1]?.trim() : undefined,
-          notes: parts[2] || undefined,
-        };
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const res = await api.get("/trainer/templates");
+        const data = res?.data?.data || [];
+        setTemplates(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load plan templates", err);
+      }
+    };
+    fetchTemplates();
+  }, []);
+
+  const memberOptions = useMemo(() => {
+    return members
+      .filter((member) => member.role === "member")
+      .filter((member) => {
+        const query = memberSearch.trim().toLowerCase();
+        if (!query) return true;
+        return (
+          member.name?.toLowerCase().includes(query) ||
+          member.email?.toLowerCase().includes(query)
+        );
       });
+  }, [members, memberSearch]);
+
+  const visibleMemberIds = useMemo(
+    () => memberOptions.map((member) => member._id),
+    [memberOptions],
+  );
+
+  const allVisibleSelected = useMemo(
+    () =>
+      visibleMemberIds.length > 0 &&
+      visibleMemberIds.every((id) => assigned.includes(id)),
+    [assigned, visibleMemberIds],
+  );
+
+  const handleExerciseChange = (index, field, value) => {
+    setExercises((current) =>
+      current.map((exercise, idx) =>
+        idx === index ? { ...exercise, [field]: value } : exercise,
+      ),
+    );
+  };
+
+  const addExercise = () => {
+    setExercises((current) => [
+      ...current,
+      { name: "", sets: "", reps: "", notes: "" },
+    ]);
+  };
+
+  const removeExercise = (index) => {
+    setExercises((current) => current.filter((_, idx) => idx !== index));
+  };
+
+  const handleMealChange = (index, field, value) => {
+    setMeals((current) =>
+      current.map((meal, idx) =>
+        idx === index ? { ...meal, [field]: value } : meal,
+      ),
+    );
+  };
+
+  const addMeal = () => {
+    setMeals((current) => [...current, { mealName: "", description: "" }]);
+  };
+
+  const removeMeal = (index) => {
+    setMeals((current) => current.filter((_, idx) => idx !== index));
+  };
+
+  const loadTemplate = (templateId) => {
+    if (!templateId) {
+      setSelectedTemplateId("");
+      return;
+    }
+
+    const template = templates.find((item) => item._id === templateId);
+    if (!template) return;
+
+    setSelectedTemplateId(templateId);
+    setTitle(template.templateName || "");
+    setExercises(
+      Array.isArray(template.exercises) && template.exercises.length
+        ? template.exercises.map((exercise) => ({
+            name: exercise.name || "",
+            sets: exercise.sets !== undefined ? String(exercise.sets) : "",
+            reps: exercise.reps || "",
+            notes: exercise.notes || "",
+          }))
+        : [{ name: "", sets: "", reps: "", notes: "" }],
+    );
+    setMeals(
+      Array.isArray(template.meals) && template.meals.length
+        ? template.meals.map((meal) => ({
+            mealName: meal.mealName || "",
+            description: meal.description || "",
+          }))
+        : [{ mealName: "", description: "" }],
+    );
+  };
+
+  const openTemplateModal = () => {
+    setTemplateName("");
+    setTemplateModalOpen(true);
+  };
+
+  const saveTemplate = async () => {
+    if (!templateName.trim()) {
+      setMessage("Template name is required.");
+      return;
+    }
+
+    const payload = {
+      templateName: templateName.trim(),
+      exercises: exercises.map((exercise) => ({
+        name: exercise.name.trim(),
+        sets: exercise.sets ? Number(exercise.sets) : 0,
+        reps: exercise.reps.trim(),
+        notes: exercise.notes.trim(),
+      })),
+      meals: meals.map((meal) => ({
+        mealName: meal.mealName.trim(),
+        description: meal.description.trim(),
+      })),
+    };
+
+    try {
+      const res = await api.post("/trainer/templates", payload);
+      if (res?.data?.success) {
+        setTemplates((current) => [res.data.data, ...current]);
+        setMessage(res.data.message || "Template saved");
+        setTemplateModalOpen(false);
+      }
+    } catch (err) {
+      setMessage(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to save template",
+      );
+    }
   };
 
   const toggleSelectAll = () => {
-    if (assigned.length === members.length) {
-      setAssigned([]);
+    if (allVisibleSelected) {
+      setAssigned((current) =>
+        current.filter((id) => !visibleMemberIds.includes(id)),
+      );
       return;
     }
-    setAssigned(members.map((member) => member._id));
+    setAssigned((current) =>
+      Array.from(new Set([...current, ...visibleMemberIds])),
+    );
   };
 
   const handleCreate = async (e) => {
@@ -62,27 +204,41 @@ export default function TrainerPlans() {
     setSaving(true);
     setMessage(null);
     try {
-      const exercises = parseExercises(exercisesText);
-      const dietNotes = dietNotesText
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const filteredExercises = exercises
+        .map((exercise) => ({
+          name: exercise.name.trim(),
+          sets: exercise.sets ? Number(exercise.sets) : undefined,
+          reps: exercise.reps.trim() || undefined,
+          notes: exercise.notes.trim() || undefined,
+        }))
+        .filter((item) => item.name || item.sets || item.reps || item.notes);
+
+      const dietNotes = meals
+        .map((meal) => ({
+          item: meal.mealName.trim() || meal.description.trim(),
+          alternatives:
+            meal.mealName.trim() && meal.description.trim()
+              ? [meal.description.trim()]
+              : [],
+        }))
+        .filter((note) => note.item);
 
       const payload = {
         title,
         description,
-        exercises,
+        exercises: filteredExercises,
         dietNotes,
         assignedTo: assigned,
       };
+
       const res = await api.post("/plans", payload);
       setMessage(res?.data?.message || "Plan created");
-      // reset form
       setTitle("");
       setDescription("");
-      setExercisesText("");
-      setDietNotesText("");
+      setExercises([{ name: "", sets: "", reps: "", notes: "" }]);
+      setMeals([{ mealName: "", description: "" }]);
       setAssigned([]);
+      setMemberSearch("");
     } catch (err) {
       setMessage(
         err?.response?.data?.message || err?.message || "Create failed",
@@ -116,70 +272,222 @@ export default function TrainerPlans() {
           className="rounded-2xl border border-slate-200 px-4 py-3"
         />
 
-        <label className="text-sm text-slate-700">
-          Exercises (one per line, format: Name | sets x reps | notes)
-        </label>
-        <textarea
-          value={exercisesText}
-          onChange={(e) => setExercisesText(e.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3"
-          rows={5}
-        />
-
-        <label className="text-sm text-slate-700">
-          Diet notes (one per line)
-        </label>
-        <textarea
-          value={dietNotesText}
-          onChange={(e) => setDietNotesText(e.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3"
-          rows={3}
-        />
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="text-sm text-slate-700">Assign to members</label>
-          <button
-            type="button"
-            onClick={toggleSelectAll}
-            className="rounded-3xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <label className="text-sm text-slate-700">Load from template</label>
+          <select
+            value={selectedTemplateId}
+            onChange={(e) => loadTemplate(e.target.value)}
+            className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
           >
-            {assigned.length === members.length ? "Clear all" : "Select all"}
-          </button>
+            <option value="">Choose a saved template</option>
+            {templates.map((template) => (
+              <option key={template._id} value={template._id}>
+                {template.templateName}
+              </option>
+            ))}
+          </select>
         </div>
-        {loading ? (
-          <div className="text-sm text-slate-500">Loading members...</div>
-        ) : (
-          <div className="grid max-h-40 overflow-auto gap-2 rounded-md border border-slate-100 p-2">
-            {members.map((m) => (
-              <label
-                key={m._id}
-                className="inline-flex items-center gap-2 text-sm"
+
+        <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-semibold text-slate-900">
+                Workout exercises
+              </label>
+              <p className="text-xs text-slate-500">
+                Add exercises with sets, reps and optional notes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addExercise}
+              className="rounded-3xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              Add Exercise
+            </button>
+          </div>
+          <div className="space-y-3">
+            {exercises.map((exercise, index) => (
+              <div
+                key={index}
+                className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]"
               >
                 <input
-                  type="checkbox"
-                  checked={assigned.includes(m._id)}
+                  placeholder="Exercise name"
+                  value={exercise.name}
                   onChange={(e) =>
-                    setAssigned((cur) =>
-                      e.target.checked
-                        ? [...cur, m._id]
-                        : cur.filter((id) => id !== m._id),
-                    )
+                    handleExerciseChange(index, "name", e.target.value)
                   }
+                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  required={!exercise.notes && !exercise.reps && !exercise.sets}
                 />
-                <span className="text-slate-700">
-                  {m.name}{" "}
-                  <span className="text-xs text-slate-400">({m.email})</span>
-                </span>
-              </label>
+                <input
+                  placeholder="Sets"
+                  value={exercise.sets}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "sets", e.target.value)
+                  }
+                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  type="number"
+                  min="0"
+                />
+                <input
+                  placeholder="Reps"
+                  value={exercise.reps}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "reps", e.target.value)
+                  }
+                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                />
+                <input
+                  placeholder="Notes"
+                  value={exercise.notes}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "notes", e.target.value)
+                  }
+                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeExercise(index)}
+                  className="rounded-3xl bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              </div>
             ))}
           </div>
-        )}
+        </div>
+
+        <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-semibold text-slate-900">
+                Diet meals
+              </label>
+              <p className="text-xs text-slate-500">
+                Add meals and a short description for each.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addMeal}
+              className="rounded-3xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              Add Meal
+            </button>
+          </div>
+          <div className="space-y-3">
+            {meals.map((meal, index) => (
+              <div
+                key={index}
+                className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1.5fr_2fr_auto]"
+              >
+                <input
+                  placeholder="Meal name"
+                  value={meal.mealName}
+                  onChange={(e) =>
+                    handleMealChange(index, "mealName", e.target.value)
+                  }
+                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                />
+                <input
+                  placeholder="Description"
+                  value={meal.description}
+                  onChange={(e) =>
+                    handleMealChange(index, "description", e.target.value)
+                  }
+                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeMeal(index)}
+                  className="rounded-3xl bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <label className="text-sm font-semibold text-slate-900">
+                Assign to members
+              </label>
+              <p className="text-xs text-slate-500">
+                Only gym members are shown here.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="rounded-3xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              {allVisibleSelected ? "Clear visible" : "Select visible"}
+            </button>
+          </div>
+          <input
+            placeholder="Search members by name or email"
+            value={memberSearch}
+            onChange={(e) => setMemberSearch(e.target.value)}
+            className="rounded-3xl border border-slate-200 bg-white px-4 py-3"
+          />
+          {loading ? (
+            <div className="text-sm text-slate-500">Loading members...</div>
+          ) : (
+            <div className="max-h-48 overflow-auto rounded-3xl border border-slate-200 bg-white p-3">
+              {memberOptions.length ? (
+                <div className="grid gap-2">
+                  {memberOptions.map((m) => (
+                    <label
+                      key={m._id}
+                      className="inline-flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assigned.includes(m._id)}
+                        onChange={(e) =>
+                          setAssigned((cur) =>
+                            e.target.checked
+                              ? [...cur, m._id]
+                              : cur.filter((id) => id !== m._id),
+                          )
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900"
+                      />
+                      <span className="text-slate-700">
+                        {m.name}{" "}
+                        <span className="text-xs text-slate-400">
+                          ({m.email})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-slate-500">
+                  No members match your search.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {message ? (
           <div className="text-sm text-slate-700">{message}</div>
         ) : null}
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={openTemplateModal}
+            className="rounded-3xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+          >
+            Save as Template
+          </button>
           <button
             type="submit"
             disabled={saving}
@@ -189,6 +497,57 @@ export default function TrainerPlans() {
           </button>
         </div>
       </form>
+
+      {templateModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6">
+          <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-4xl border border-slate-700 bg-white p-6 shadow-2xl shadow-slate-950/30">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-950">
+                  Save plan as template
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Give this workout and meal plan a reusable name.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTemplateModalOpen(false)}
+                className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Close
+              </button>
+            </div>
+            <div className="mt-6 space-y-4">
+              <label className="block text-sm text-slate-700">
+                Template name
+                <input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="mt-2 w-full rounded-3xl border border-slate-200 px-4 py-3"
+                  placeholder="e.g. Beginner Bulking Plan"
+                />
+              </label>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTemplateModalOpen(false)}
+                  className="rounded-3xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveTemplate}
+                  className="rounded-3xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  Save Template
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

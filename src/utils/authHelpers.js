@@ -37,7 +37,7 @@ export const parseJwtToken = (token) => {
         .join(""),
     );
     return JSON.parse(payload);
-  } catch (error) {
+  } catch {
     return null;
   }
 };

@@ -1,18 +1,28 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authContextValue";
 import { detectTenantFromLocation } from "../utils/tenantUtils";
 import FeaturePlaceholder from "../components/FeaturePlaceholder";
 import GymOwnerDashboard from "../pages/gym-owner/GymOwnerDashboard";
 import MembersPage from "../pages/gym-owner/MembersPage";
 import ReportsPage from "../pages/gym-owner/ReportsPage";
+import SubscriptionsPage from "../pages/gym-owner/SubscriptionsPage";
 import LoginPage from "../pages/auth/LoginPage";
 import MemberDashboard from "../pages/member/MemberDashboard";
 import MemberProfile from "../pages/member/MemberProfile";
 import MyPlans from "../pages/member/MyPlans";
+import Leaderboard from "../pages/member/Leaderboard";
 import ReceptionistDashboard from "../pages/receptionist/ReceptionistDashboard";
 import TenantLandingPage from "../pages/tenant/TenantLandingPage";
+import SuperAdminLayout from "../pages/super-admin/SuperAdminLayout";
 import SuperAdminDashboard from "../pages/super-admin/SuperAdminDashboard";
+import TenantDetails from "../pages/super-admin/TenantDetails";
+import SaaSPlans from "../pages/super-admin/SaaSPlans";
+import Broadcasts from "../pages/super-admin/Broadcasts";
+import AuditLogs from "../pages/super-admin/AuditLogs";
 import TrainerDashboard from "../pages/trainer/TrainerDashboard";
+import TrainerClasses from "../pages/trainer/TrainerClasses";
+import InBodyRecords from "../pages/trainer/InBodyRecords";
+import QuickScanner from "../pages/owner/QuickScanner";
 import TenantLayout from "../components/TenantLayout";
 import TenantNotFoundPage from "../pages/error/TenantNotFoundPage";
 import NotFoundPage from "../pages/error/NotFoundPage";
@@ -28,6 +38,7 @@ const normalizeRouteRole = (rawRole) => {
   }
   if (
     roleString.includes("gym_owner") ||
+    roleString.includes("gymowner") ||
     roleString === "owner" ||
     roleString.includes("owner")
   ) {
@@ -63,7 +74,9 @@ const ProtectedRoute = ({ allowedRoles, requireTenant = true, children }) => {
     );
   }
 
-  if (requireTenant && !tenant?.slug) {
+  const normalizedRole = normalizeRouteRole(userRole);
+
+  if (requireTenant && normalizedRole !== "super_admin" && !tenant?.slug) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
@@ -71,8 +84,10 @@ const ProtectedRoute = ({ allowedRoles, requireTenant = true, children }) => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  const normalizedRole = normalizeRouteRole(userRole);
-  if (allowedRoles && !allowedRoles.includes(normalizedRole)) {
+  const normalizedAllowedRoles =
+    allowedRoles?.map((role) => normalizeRouteRole(role)) || [];
+
+  if (allowedRoles && !normalizedAllowedRoles.includes(normalizedRole)) {
     return <Navigate to="/" replace />;
   }
 
@@ -119,15 +134,24 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<TenantLandingPage />} />
+      <Route path="/admin-login" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
-        path="/admin/dashboard"
+        path="/admin/*"
         element={
           <ProtectedRoute allowedRoles={["super_admin"]}>
-            <SuperAdminDashboard />
+            <SuperAdminLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<SuperAdminDashboard />} />
+        <Route path="dashboard" element={<SuperAdminDashboard />} />
+        <Route path="tenants" element={<SuperAdminDashboard />} />
+        <Route path="tenants/:id" element={<TenantDetails />} />
+        <Route path="plans" element={<SaaSPlans />} />
+        <Route path="broadcasts" element={<Broadcasts />} />
+        <Route path="audit-logs" element={<AuditLogs />} />
+      </Route>
 
       <Route element={<TenantRoute />}>
         <Route element={<TenantLayout />}>
@@ -166,10 +190,7 @@ export default function AppRoutes() {
             path="/subscriptions"
             element={
               <ProtectedRoute allowedRoles={["gym_owner"]}>
-                <FeaturePlaceholder
-                  title="Subscriptions"
-                  description="Track renewals, payment plans, and subscription health with a polished dashboard."
-                />
+                <SubscriptionsPage />
               </ProtectedRoute>
             }
           />
@@ -223,10 +244,7 @@ export default function AppRoutes() {
             path="/classes"
             element={
               <ProtectedRoute allowedRoles={["trainer"]}>
-                <FeaturePlaceholder
-                  title="Classes"
-                  description="Plan, assign, and monitor classes with a streamlined trainer workspace."
-                />
+                <TrainerClasses />
               </ProtectedRoute>
             }
           />
@@ -234,10 +252,17 @@ export default function AppRoutes() {
             path="/inbody"
             element={
               <ProtectedRoute allowedRoles={["trainer"]}>
-                <FeaturePlaceholder
-                  title="InBody Records"
-                  description="Review body composition sessions and measurement history for each member."
-                />
+                <InBodyRecords />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quick-scanner"
+            element={
+              <ProtectedRoute
+                allowedRoles={["gym_owner", "receptionist", "trainer"]}
+              >
+                <QuickScanner />
               </ProtectedRoute>
             }
           />
@@ -254,6 +279,14 @@ export default function AppRoutes() {
             element={
               <ProtectedRoute allowedRoles={["member"]}>
                 <MyPlans />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leaderboard"
+            element={
+              <ProtectedRoute allowedRoles={["member"]}>
+                <Leaderboard />
               </ProtectedRoute>
             }
           />
