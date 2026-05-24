@@ -52,11 +52,37 @@ export default function QuickScanner() {
     if (!result) return;
     if (paused) return;
     setPaused(true);
-    const memberId = result?.text || (result?.getText && result.getText());
+    const scannedText = result?.text || (result?.getText && result.getText());
     setMessage("Processing scan...");
     setStatus(null);
+
+    // Safely parse scanned QR text into JSON object
+    let parsedData = null;
+    if (typeof scannedText === "string") {
+      try {
+        parsedData = JSON.parse(scannedText);
+      } catch (parseErr) {
+        setMessage("Invalid QR Code format");
+        setStatus("error");
+        return;
+      }
+    } else if (typeof scannedText === "object") {
+      parsedData = scannedText;
+    } else {
+      setMessage("Invalid QR Code format");
+      setStatus("error");
+      return;
+    }
+
+    // Ensure memberId exists
+    if (!parsedData || !parsedData.memberId) {
+      setMessage("Invalid QR Code: missing memberId");
+      setStatus("error");
+      return;
+    }
+
     try {
-      const resp = await api.post("/attendance/scan-qr", { memberId });
+      const resp = await api.post("/attendance/scan-qr", parsedData);
       if (resp?.data?.success) {
         setMessage(resp.data.message || "Check-in successful");
         setStatus("success");
