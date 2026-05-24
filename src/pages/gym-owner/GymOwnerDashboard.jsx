@@ -3,6 +3,7 @@ import api from "../../api/axios";
 import { useAuth } from "../../context/authContextValue";
 import ChurnRadarPanel from "../../components/ChurnRadarPanel";
 import AIFinancialInsights from "../../components/AIFinancialInsights";
+import Loading from "../../components/Loading";
 
 export default function GymOwnerDashboard() {
   const { tenant } = useAuth();
@@ -10,24 +11,55 @@ export default function GymOwnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const currentTenantSlug =
+    typeof tenant === "string" ? tenant : tenant?.slug || null;
+
   useEffect(() => {
+    let isMounted = true;
+
+    if (!currentTenantSlug) {
+      setLoading(false);
+      setError(null);
+      setMetrics(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
     const fetchMetrics = async () => {
       setLoading(true);
       try {
-        const res = await api.get("/owner/metrics");
+        const res = await api.get("/owner/metrics", {
+          headers: {
+            "x-tenant-slug": currentTenantSlug,
+          },
+        });
+        if (!isMounted) {
+          return;
+        }
         setMetrics(res?.data?.data || null);
       } catch (err) {
+        if (!isMounted) {
+          return;
+        }
         setError(
           err?.response?.data?.message ||
             err?.message ||
             "Unable to load metrics",
         );
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchMetrics();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentTenantSlug]);
 
   const headerTitle = useMemo(
     () => `${tenant?.displayName || "Your Gym"} Owner Dashboard`,
@@ -58,6 +90,14 @@ export default function GymOwnerDashboard() {
         },
       ]
     : [];
+
+  if (!currentTenantSlug) {
+    return (
+      <main className="space-y-6">
+        <Loading message="Waiting for your tenant workspace..." />
+      </main>
+    );
+  }
 
   return (
     <main className="space-y-10">

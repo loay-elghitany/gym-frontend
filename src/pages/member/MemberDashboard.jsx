@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../../context/authContextValue";
 import GamificationPanel from "../../components/GamificationPanel";
 import ActiveWorkoutSession from "../../components/ActiveWorkoutSession";
@@ -8,7 +9,7 @@ import api from "../../api/axios";
 
 export default function MemberDashboard() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, tenant } = useAuth();
   const [attendance, setAttendance] = useState(null);
   const [attendanceError, setAttendanceError] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(true);
@@ -42,6 +43,19 @@ export default function MemberDashboard() {
     if (points >= 501) return "Silver";
     return "Bronze";
   }, [user]);
+
+  const currentTenantSlug =
+    typeof tenant === "string" ? tenant : tenant?.slug || null;
+  const qrCodeValue = useMemo(() => {
+    if (!user?._id || !currentTenantSlug) {
+      return "";
+    }
+
+    return JSON.stringify({
+      memberId: user._id,
+      tenantSlug: currentTenantSlug,
+    });
+  }, [currentTenantSlug, user]);
 
   const formatHourLabel = (hour) => {
     const isPm = hour >= 12;
@@ -210,6 +224,70 @@ export default function MemberDashboard() {
       </section>
 
       <ActiveWorkoutSession />
+
+      <section className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
+        <article className="mx-auto w-full max-w-md rounded-[28px] border border-slate-200 bg-gradient-to-br from-slate-950 via-sky-950 to-slate-900 p-5 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.45)] sm:p-6 lg:max-w-none">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200">
+              Scan for Check-in
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold text-white">
+              Check-in card
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-200/90">
+              Show this QR code to the reception scanner for a fast, contactless
+              check-in.
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-[24px] bg-white px-4 py-5 shadow-inner sm:px-5">
+            {qrCodeValue ? (
+              <div className="mx-auto flex w-full max-w-[260px] items-center justify-center rounded-[20px] bg-white p-3 sm:p-4">
+                <QRCodeSVG
+                  value={qrCodeValue}
+                  size={180}
+                  bgColor="#ffffff"
+                  fgColor="#0f172a"
+                  level="H"
+                  includeMargin={false}
+                  className="mx-auto block h-auto w-full"
+                />
+              </div>
+            ) : (
+              <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-sm text-slate-500">
+                Loading QR code...
+              </div>
+            )}
+          </div>
+
+          <p className="mt-4 text-center text-xs leading-6 text-slate-300">
+            Keep this card visible on your phone and scan it at the front desk
+            or gym entrance.
+          </p>
+        </article>
+
+        <article className="rounded-4xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.32em] text-slate-500">
+            Check-in guidance
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold text-slate-950">
+            Keep your attendance streak alive
+          </h2>
+          <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
+            <li>
+              • Scan the QR code before entering the gym to auto-validate your
+              session.
+            </li>
+            <li>
+              • Check in daily to keep your streak and badge rewards active.
+            </li>
+            <li>
+              • Use the live occupancy panel to plan your visit during peak
+              hours.
+            </li>
+          </ul>
+        </article>
+      </section>
 
       <section className="rounded-4xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

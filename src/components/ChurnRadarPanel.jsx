@@ -6,7 +6,6 @@ export default function ChurnRadarPanel() {
   const [loading, setLoading] = useState(true);
   const [notifyMessage, setNotifyMessage] = useState(null);
   const [requestInProgress, setRequestInProgress] = useState(false);
-  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const fetchRisk = async () => {
@@ -41,6 +40,19 @@ export default function ChurnRadarPanel() {
   };
 
   const totalInactive = riskData?.count || 0;
+
+  const getStatusLabel = (member) => {
+    if (!member?.lastAttendanceAt) {
+      return "New Member";
+    }
+
+    if (member.daysAbsent === 0) {
+      return "Present Today";
+    }
+
+    return `Absent ${member.daysAbsent}+ days`;
+  };
+
   const segments = [
     {
       label: "High churn",
@@ -86,7 +98,7 @@ export default function ChurnRadarPanel() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="relative overflow-hidden rounded-[2rem] bg-slate-950/5 p-6">
+        <div className="relative overflow-hidden rounded-4xl bg-slate-950/5 p-6">
           <div className="relative mx-auto flex h-64 w-64 items-center justify-center">
             <div className="absolute inset-0 rounded-full border border-slate-200" />
             <div className="absolute inset-12 rounded-full bg-sky-500/10" />
@@ -132,7 +144,7 @@ export default function ChurnRadarPanel() {
           </div>
         </div>
 
-        <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-6">
+        <div className="space-y-4 rounded-4xl border border-slate-200 bg-slate-50 p-6">
           <div className="rounded-3xl bg-white p-5 shadow-sm">
             <p className="text-xs uppercase tracking-[0.32em] text-slate-500">
               Recovery playbook
@@ -151,44 +163,31 @@ export default function ChurnRadarPanel() {
               {loading ? (
                 <li>Loading members...</li>
               ) : (
-                riskData?.members?.slice(0, 3).map((member) => {
-                  const absentDays =
-                    member.lastAttendanceAt && now
-                      ? Math.max(
-                          10,
-                          Math.floor(
-                            (now -
-                              new Date(member.lastAttendanceAt).getTime()) /
-                              (1000 * 60 * 60 * 24),
-                          ),
-                        )
-                      : 10;
-                  return (
-                    <li
-                      key={member._id}
-                      className="rounded-2xl bg-slate-50 px-4 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-950">
-                            {member.name}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Absent {absentDays}+ days
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={requestInProgress}
-                          onClick={() => handleNotify(member._id)}
-                          className="rounded-3xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-                        >
-                          Notify
-                        </button>
+                riskData?.members?.slice(0, 3).map((member) => (
+                  <li
+                    key={member._id}
+                    className="rounded-2xl bg-slate-50 px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-950">
+                          {member.name}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {getStatusLabel(member)}
+                        </p>
                       </div>
-                    </li>
-                  );
-                })
+                      <button
+                        type="button"
+                        disabled={requestInProgress}
+                        onClick={() => handleNotify(member._id)}
+                        className="rounded-3xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                      >
+                        Notify
+                      </button>
+                    </div>
+                  </li>
+                ))
               )}
             </ul>
             {notifyMessage ? (
