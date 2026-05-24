@@ -21,6 +21,7 @@ export default function TrainerPlans() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [messageTone, setMessageTone] = useState("neutral");
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -148,27 +149,34 @@ export default function TrainerPlans() {
 
   const openTemplateModal = () => {
     setTemplateName("");
+    setMessage(null);
+    setMessageTone("neutral");
     setTemplateModalOpen(true);
   };
 
   const saveTemplate = async () => {
     if (!templateName.trim()) {
       setMessage("Template name is required.");
+      setMessageTone("error");
       return;
     }
 
     const payload = {
       templateName: templateName.trim(),
-      exercises: exercises.map((exercise) => ({
-        name: exercise.name.trim(),
-        sets: exercise.sets ? Number(exercise.sets) : 0,
-        reps: exercise.reps.trim(),
-        notes: exercise.notes.trim(),
-      })),
-      meals: meals.map((meal) => ({
-        mealName: meal.mealName.trim(),
-        description: meal.description.trim(),
-      })),
+      exercises: exercises
+        .filter((exercise) => exercise.name.trim())
+        .map((exercise) => ({
+          name: exercise.name.trim(),
+          sets: exercise.sets ? Number(exercise.sets) : 0,
+          reps: exercise.reps.trim(),
+          notes: exercise.notes.trim(),
+        })),
+      meals: meals
+        .filter((meal) => meal.mealName.trim())
+        .map((meal) => ({
+          mealName: meal.mealName.trim(),
+          description: meal.description.trim(),
+        })),
     };
 
     try {
@@ -176,6 +184,7 @@ export default function TrainerPlans() {
       if (res?.data?.success) {
         setTemplates((current) => [res.data.data, ...current]);
         setMessage(res.data.message || "Template saved");
+        setMessageTone("success");
         setTemplateModalOpen(false);
       }
     } catch (err) {
@@ -184,6 +193,7 @@ export default function TrainerPlans() {
           err?.message ||
           "Unable to save template",
       );
+      setMessageTone("error");
     }
   };
 
@@ -477,7 +487,17 @@ export default function TrainerPlans() {
         </div>
 
         {message ? (
-          <div className="text-sm text-slate-700">{message}</div>
+          <div
+            className={`rounded-3xl border px-4 py-3 text-sm ${
+              messageTone === "error"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : messageTone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-slate-50 text-slate-700"
+            }`}
+          >
+            {message}
+          </div>
         ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">

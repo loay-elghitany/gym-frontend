@@ -12,6 +12,8 @@ export default function SmartTemplatesBuilder() {
   ]);
   const [newDietNotes, setNewDietNotes] = useState([""]);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [messageTone, setMessageTone] = useState("neutral");
   const [assignments] = useState([]);
 
   const loadTemplates = async () => {
@@ -39,6 +41,8 @@ export default function SmartTemplatesBuilder() {
     setNewExercises([{ name: "", sets: "", reps: "" }]);
     setNewDietNotes([""]);
     setSaving(false);
+    setMessage(null);
+    setMessageTone("neutral");
   };
 
   useBodyScrollLock(modalOpen);
@@ -76,19 +80,41 @@ export default function SmartTemplatesBuilder() {
   const handleCreateTemplate = async (event) => {
     event.preventDefault();
     setSaving(true);
+    setMessage(null);
+    setMessageTone("neutral");
 
     const payload = {
       templateName: templateName.trim(),
-      exercises: newExercises.filter((exercise) => exercise.name.trim()),
-      meals: newDietNotes.filter((note) => note.trim()),
+      exercises: newExercises
+        .filter((exercise) => exercise.name.trim())
+        .map((exercise) => ({
+          name: exercise.name.trim(),
+          sets: Number(exercise.sets) || 0,
+          reps: exercise.reps.trim(),
+          notes: exercise.notes?.trim() || "",
+        })),
+      meals: newDietNotes
+        .filter((note) => note.trim())
+        .map((note) => ({
+          mealName: note.trim(),
+          description: "",
+        })),
     };
 
     try {
       await api.post("/trainer/templates", payload);
+      setMessage("Template saved successfully.");
+      setMessageTone("success");
       closeModal();
       await loadTemplates();
     } catch (error) {
       console.error("Unable to create trainer template", error);
+      setMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to save template",
+      );
+      setMessageTone("error");
       setSaving(false);
     }
   };
@@ -232,6 +258,19 @@ export default function SmartTemplatesBuilder() {
             </div>
 
             <form onSubmit={handleCreateTemplate} className="mt-6 space-y-6">
+              {message ? (
+                <div
+                  className={`rounded-3xl border px-4 py-3 text-sm ${
+                    messageTone === "error"
+                      ? "border-rose-200 bg-rose-50 text-rose-700"
+                      : messageTone === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  {message}
+                </div>
+              ) : null}
               <div>
                 <label className="block text-sm font-medium text-slate-900">
                   Template name
