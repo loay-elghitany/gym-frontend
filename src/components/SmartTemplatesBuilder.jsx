@@ -1,7 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
 import ExerciseAutocomplete from "./ExerciseAutocomplete";
+import FoodAutocomplete from "./FoodAutocomplete";
 import useBodyScrollLock from "../hooks/useBodyScrollLock";
+
+const emptyMeal = {
+  mealName: "",
+  quantity: "",
+  calories: null,
+  protein: null,
+  carbs: null,
+  fats: null,
+  baseUnit: "100g",
+};
 
 export default function SmartTemplatesBuilder() {
   const [templates, setTemplates] = useState([]);
@@ -11,7 +22,7 @@ export default function SmartTemplatesBuilder() {
   const [newExercises, setNewExercises] = useState([
     { name: "", sets: "", reps: "", gifUrl: "" },
   ]);
-  const [newDietNotes, setNewDietNotes] = useState([""]);
+  const [newMeals, setNewMeals] = useState([emptyMeal]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [messageTone, setMessageTone] = useState("neutral");
@@ -40,7 +51,7 @@ export default function SmartTemplatesBuilder() {
     setModalOpen(false);
     setTemplateName("");
     setNewExercises([{ name: "", sets: "", reps: "", gifUrl: "" }]);
-    setNewDietNotes([""]);
+    setNewMeals([emptyMeal]);
     setSaving(false);
     setMessage(null);
     setMessageTone("neutral");
@@ -96,19 +107,101 @@ export default function SmartTemplatesBuilder() {
     ]);
   };
 
-  const updateDietNote = (index, value) => {
-    setNewDietNotes((prev) =>
-      prev.map((note, idx) => (idx === index ? value : note)),
+  const updateMeal = (index, field, value) => {
+    setNewMeals((prev) =>
+      prev.map((meal, idx) => {
+        if (idx !== index) {
+          return meal;
+        }
+
+        const nextMeal = { ...meal, [field]: value };
+
+        if (field === "mealName") {
+          nextMeal.calories = null;
+          nextMeal.protein = null;
+          nextMeal.carbs = null;
+          nextMeal.fats = null;
+          nextMeal.baseUnit = "100g";
+        }
+
+        return nextMeal;
+      }),
     );
   };
 
-  const addDietNote = () => {
-    setNewDietNotes((prev) => [...prev, ""]);
+  const selectFood = (index, selectedFood) => {
+    setNewMeals((prev) =>
+      prev.map((meal, idx) => {
+        if (idx !== index) {
+          return meal;
+        }
+
+        return {
+          ...meal,
+          mealName:
+            selectedFood?.nameAr?.trim() ||
+            selectedFood?.nameEn?.trim() ||
+            meal.mealName,
+          calories: Number(selectedFood?.calories) || 0,
+          protein: Number(selectedFood?.protein) || 0,
+          carbs: Number(selectedFood?.carbs) || 0,
+          fats: Number(selectedFood?.fats) || 0,
+          baseUnit: selectedFood?.baseUnit || "100g",
+        };
+      }),
+    );
   };
 
-  const removeDietNote = (index) => {
-    setNewDietNotes((prev) => prev.filter((_, idx) => idx !== index));
+  const addMeal = () => {
+    setNewMeals((prev) => [...prev, { ...emptyMeal }]);
   };
+
+  const removeMeal = (index) => {
+    setNewMeals((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const toNumber = (value) => {
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const getCalculatedMacros = (meal) => {
+    const quantity = toNumber(meal.quantity);
+    const baseUnit = String(meal.baseUnit || "100g")
+      .trim()
+      .toLowerCase();
+    const multiplier =
+      baseUnit === "100g" || baseUnit === "100 g" ? quantity / 100 : quantity;
+
+    return {
+      calories:
+        meal.calories === null ? null : toNumber(meal.calories) * multiplier,
+      protein:
+        meal.protein === null ? null : toNumber(meal.protein) * multiplier,
+      carbs: meal.carbs === null ? null : toNumber(meal.carbs) * multiplier,
+      fats: meal.fats === null ? null : toNumber(meal.fats) * multiplier,
+    };
+  };
+
+  const planTotals = useMemo(() => {
+    return newMeals.reduce(
+      (totals, meal) => {
+        const macros = getCalculatedMacros(meal);
+
+        return {
+          calories: totals.calories + (macros.calories || 0),
+          protein: totals.protein + (macros.protein || 0),
+          carbs: totals.carbs + (macros.carbs || 0),
+          fats: totals.fats + (macros.fats || 0),
+        };
+      },
+      { calories: 0, protein: 0, carbs: 0, fats: 0 },
+    );
+  }, [newMeals]);
 
   const handleCreateTemplate = async (event) => {
     event.preventDefault();
@@ -127,11 +220,17 @@ export default function SmartTemplatesBuilder() {
           notes: exercise.notes?.trim() || "",
           gifUrl: exercise.gifUrl?.trim() || "",
         })),
-      meals: newDietNotes
-        .filter((note) => note.trim())
-        .map((note) => ({
-          mealName: note.trim(),
+      meals: newMeals
+        .filter((meal) => meal.mealName.trim())
+        .map((meal) => ({
+          mealName: meal.mealName.trim(),
           description: "",
+          quantity: Number(meal.quantity) || 0,
+          calories: meal.calories === null ? null : Number(meal.calories) || 0,
+          protein: meal.protein === null ? null : Number(meal.protein) || 0,
+          carbs: meal.carbs === null ? null : Number(meal.carbs) || 0,
+          fats: meal.fats === null ? null : Number(meal.fats) || 0,
+          baseUnit: meal.baseUnit || "100g",
         })),
     };
 
@@ -381,38 +480,172 @@ export default function SmartTemplatesBuilder() {
 
               <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-950">
-                    Diet notes
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      Smart nutrition builder
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Search a food, add quantity, and preview its macros in
+                      real time.
+                    </p>
+                  </div>
                   <button
-                    onClick={addDietNote}
+                    onClick={addMeal}
                     type="button"
                     className="rounded-3xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                   >
-                    Add note
+                    Add meal
                   </button>
                 </div>
-                <div className="space-y-3">
-                  {newDietNotes.map((note, index) => (
-                    <div key={index} className="flex gap-3">
-                      <input
-                        value={note}
-                        onChange={(event) =>
-                          updateDietNote(index, event.target.value)
-                        }
-                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
-                        placeholder="Diet guidance or meal note"
-                        required
-                      />
-                      <button
-                        onClick={() => removeDietNote(index)}
-                        type="button"
-                        className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+
+                <div className="grid gap-3">
+                  {newMeals.map((meal, index) => {
+                    const calculated = getCalculatedMacros(meal);
+                    const hasMacroData =
+                      meal.calories !== null ||
+                      meal.protein !== null ||
+                      meal.carbs !== null ||
+                      meal.fats !== null;
+
+                    return (
+                      <div
+                        key={index}
+                        className="rounded-3xl bg-white p-4 shadow-sm"
                       >
-                        Remove
-                      </button>
+                        <div className="grid gap-3 xl:grid-cols-[1.4fr_0.7fr_auto] xl:items-start">
+                          <div className="w-full">
+                            <FoodAutocomplete
+                              value={meal.mealName}
+                              onValueChange={(nextValue) =>
+                                updateMeal(index, "mealName", nextValue)
+                              }
+                              onSelect={(selectedFood) =>
+                                selectFood(index, selectedFood)
+                              }
+                              placeholder="Search food or type custom"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={meal.quantity}
+                              onChange={(event) =>
+                                updateMeal(
+                                  index,
+                                  "quantity",
+                                  event.target.value,
+                                )
+                              }
+                              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                              placeholder="200"
+                            />
+                          </div>
+
+                          <button
+                            onClick={() => removeMeal(index)}
+                            type="button"
+                            className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                              Calories
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">
+                              {hasMacroData
+                                ? `${Math.round(calculated.calories || 0)} kcal`
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                              Protein
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">
+                              {hasMacroData
+                                ? `${Math.round((calculated.protein || 0) * 10) / 10} g`
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                              Carbs
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">
+                              {hasMacroData
+                                ? `${Math.round((calculated.carbs || 0) * 10) / 10} g`
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                              Fats
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">
+                              {hasMacroData
+                                ? `${Math.round((calculated.fats || 0) * 10) / 10} g`
+                                : "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-3xl bg-slate-950 px-4 py-4 text-white">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold">Total Plan Macros</p>
+                      <p className="mt-1 text-sm text-slate-200">
+                        Live totals for the template before you save.
+                      </p>
                     </div>
-                  ))}
+                    <div className="grid gap-2 sm:grid-cols-4">
+                      <div className="rounded-2xl bg-white/10 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                          Calories
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                          {Math.round(planTotals.calories)} kcal
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-white/10 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                          Protein
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                          {Math.round(planTotals.protein * 10) / 10} g
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-white/10 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                          Carbs
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                          {Math.round(planTotals.carbs * 10) / 10} g
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-white/10 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                          Fats
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                          {Math.round(planTotals.fats * 10) / 10} g
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -20,21 +20,6 @@ const formatDisplayDate = (value) => {
   }).format(date);
 };
 
-const RefreshIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-4 w-4"
-  >
-    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-    <path d="M21 3v6h-6" />
-  </svg>
-);
-
 const SparkIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -49,6 +34,112 @@ const SparkIcon = () => (
   </svg>
 );
 
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getBaseMultiplier = (baseUnit) => {
+  const normalized = String(baseUnit || "100g")
+    .trim()
+    .toLowerCase();
+
+  if (normalized === "100g" || normalized === "100 g") {
+    return 1 / 100;
+  }
+
+  return 1;
+};
+
+const normalizeMealForDisplay = (meal, fallbackName = "Meal") => {
+  const quantity = toNumber(meal.quantity);
+  const baseUnit = String(meal.baseUnit || "100g");
+  const multiplier = getBaseMultiplier(baseUnit);
+  const normalizedMeal = {
+    mealName: meal.mealName || meal.name || meal.item || fallbackName || "Meal",
+    quantity,
+    baseUnit,
+    quantityLabel: quantity > 0 ? `${quantity} ${baseUnit}` : "Custom portion",
+    calories:
+      meal.calories === null || meal.calories === undefined
+        ? 0
+        : toNumber(meal.calories) * multiplier,
+    protein:
+      meal.protein === null || meal.protein === undefined
+        ? 0
+        : toNumber(meal.protein) * multiplier,
+    carbs:
+      meal.carbs === null || meal.carbs === undefined
+        ? 0
+        : toNumber(meal.carbs) * multiplier,
+    fats:
+      meal.fats === null || meal.fats === undefined
+        ? 0
+        : toNumber(meal.fats) * multiplier,
+    hasNutritionData:
+      meal.calories !== null &&
+      meal.calories !== undefined &&
+      meal.protein !== null &&
+      meal.protein !== undefined,
+  };
+
+  return normalizedMeal;
+};
+
+const getPlanMeals = (plan) => {
+  if (Array.isArray(plan.meals) && plan.meals.length) {
+    return plan.meals.map((meal) => normalizeMealForDisplay(meal));
+  }
+
+  const dietNotes = Array.isArray(plan.dietNotes) ? plan.dietNotes : [];
+
+  return dietNotes.map((note, index) => {
+    if (typeof note === "string") {
+      return normalizeMealForDisplay(
+        {
+          mealName: note,
+          quantity: 0,
+          baseUnit: "100g",
+          calories: null,
+          protein: null,
+          carbs: null,
+          fats: null,
+        },
+        note,
+      );
+    }
+
+    return normalizeMealForDisplay(
+      {
+        mealName: note?.item || note?.mealName || `Meal ${index + 1}`,
+        quantity: note?.quantity || 0,
+        baseUnit: note?.baseUnit || "100g",
+        calories: note?.calories,
+        protein: note?.protein,
+        carbs: note?.carbs,
+        fats: note?.fats,
+      },
+      note?.item || note?.mealName || `Meal ${index + 1}`,
+    );
+  });
+};
+
+const getMacroSummary = (meals) => {
+  return meals.reduce(
+    (totals, meal) => ({
+      calories: totals.calories + meal.calories,
+      protein: totals.protein + meal.protein,
+      carbs: totals.carbs + meal.carbs,
+      fats: totals.fats + meal.fats,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fats: 0 },
+  );
+};
+
 export default function MyPlans() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,8 +147,6 @@ export default function MyPlans() {
   const [selectedTabs, setSelectedTabs] = useState({});
   const [activeModes, setActiveModes] = useState({});
   const [completedExercises, setCompletedExercises] = useState({});
-  const [swapSelections, setSwapSelections] = useState({});
-  const [dietPanels, setDietPanels] = useState({});
   const [savingPlanId, setSavingPlanId] = useState(null);
   const [statusMessages, setStatusMessages] = useState({});
   const [toast, setToast] = useState(null);
@@ -115,59 +204,6 @@ export default function MyPlans() {
 
     const key = `${planId}-${index}`;
     setCompletedExercises((current) => ({
-      ...current,
-      [key]: !current[key],
-    }));
-  };
-
-  const getDietItem = (planId, note, index) => {
-    const key = `${planId}-${index}`;
-
-    if (typeof note === "string") {
-      return {
-        label: note,
-        alternatives: [],
-        active: note,
-      };
-    }
-
-    const alternatives = Array.isArray(note.alternatives)
-      ? note.alternatives
-      : [];
-
-    return {
-      label: note.item || "",
-      alternatives,
-      active: swapSelections[key] || note.item || "",
-    };
-  };
-
-  const toggleAlternative = (planId, note, index) => {
-    const key = `${planId}-${index}`;
-    const alternatives = Array.isArray(note.alternatives)
-      ? note.alternatives
-      : [];
-
-    if (!alternatives.length) {
-      return;
-    }
-
-    setSwapSelections((current) => {
-      const currentValue = current[key] || note.item;
-      const currentIndex = alternatives.indexOf(currentValue);
-      const nextIndex =
-        currentIndex === -1 ? 0 : (currentIndex + 1) % alternatives.length;
-
-      return {
-        ...current,
-        [key]: alternatives[nextIndex],
-      };
-    });
-  };
-
-  const toggleDietPanel = (planId, index) => {
-    const key = `${planId}-${index}`;
-    setDietPanels((current) => ({
       ...current,
       [key]: !current[key],
     }));
@@ -296,7 +332,8 @@ export default function MyPlans() {
 
       {plans.map((plan) => {
         const exercises = Array.isArray(plan.exercises) ? plan.exercises : [];
-        const dietNotes = Array.isArray(plan.dietNotes) ? plan.dietNotes : [];
+        const planMeals = getPlanMeals(plan);
+        const macroSummary = getMacroSummary(planMeals);
         const completedCount = exercises.reduce((count, exercise, index) => {
           const key = `${plan._id}-${index}`;
           return count + (completedExercises[key] ? 1 : 0);
@@ -557,89 +594,97 @@ export default function MyPlans() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {dietNotes.length ? (
-                    <ul className="grid gap-3">
-                      {dietNotes.map((note, index) => {
-                        const dietItem = getDietItem(plan._id, note, index);
-                        const isOpen = Boolean(
-                          dietPanels[`${plan._id}-${index}`],
-                        );
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      {
+                        label: "Calories",
+                        value: `${Math.round(macroSummary.calories)} kcal`,
+                      },
+                      {
+                        label: "Protein",
+                        value: `${Math.round(macroSummary.protein * 10) / 10} g`,
+                      },
+                      {
+                        label: "Carbs",
+                        value: `${Math.round(macroSummary.carbs * 10) / 10} g`,
+                      },
+                      {
+                        label: "Fats",
+                        value: `${Math.round(macroSummary.fats * 10) / 10} g`,
+                      },
+                    ].map((stat) => (
+                      <div
+                        key={stat.label}
+                        className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                          {stat.label}
+                        </p>
+                        <p className="mt-3 text-xl font-semibold text-slate-950">
+                          {stat.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
 
-                        return (
-                          <li
-                            key={`${plan._id}-${index}`}
-                            className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-4">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-950">
-                                  {dietItem.active || dietItem.label}
-                                </p>
-                                <p className="mt-1 text-sm text-slate-600">
-                                  Clean nutrition guidance for your daily
-                                  routine.
-                                </p>
-                              </div>
-                              {dietItem.alternatives.length ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleDietPanel(plan._id, index)
-                                  }
-                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
-                                >
-                                  <RefreshIcon />
-                                  Swap
-                                </button>
-                              ) : null}
+                  {planMeals.length ? (
+                    <div className="grid gap-3">
+                      {planMeals.map((meal, index) => (
+                        <div
+                          key={`${plan._id}-${index}`}
+                          className="rounded-[26px] border border-slate-200 bg-slate-50 px-4 py-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-950">
+                                {meal.mealName}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {meal.quantityLabel}
+                              </p>
                             </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-900">
+                                {Math.round(meal.calories)} kcal
+                              </span>
+                              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900">
+                                {Math.round(meal.protein * 10) / 10} g protein
+                              </span>
+                            </div>
+                          </div>
 
-                            {dietItem.alternatives.length ? (
-                              <div
-                                className={`overflow-hidden transition-all ${
-                                  isOpen
-                                    ? "mt-4 max-h-40 opacity-100"
-                                    : "max-h-0 opacity-0"
-                                }`}
-                              >
-                                <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
-                                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                                    Alternatives
-                                  </p>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {dietItem.alternatives.map(
-                                      (alternative) => (
-                                        <button
-                                          key={alternative}
-                                          type="button"
-                                          onClick={() =>
-                                            toggleAlternative(
-                                              plan._id,
-                                              note,
-                                              index,
-                                            )
-                                          }
-                                          className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                                            dietItem.active === alternative
-                                              ? "bg-slate-950 text-white"
-                                              : "bg-slate-100 text-slate-700"
-                                          }`}
-                                        >
-                                          {alternative}
-                                        </button>
-                                      ),
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            <div className="rounded-2xl bg-white px-3 py-3 text-sm text-slate-700">
+                              <span className="block text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                                Carbs
+                              </span>
+                              <span className="mt-2 block font-semibold text-slate-950">
+                                {Math.round(meal.carbs * 10) / 10} g
+                              </span>
+                            </div>
+                            <div className="rounded-2xl bg-white px-3 py-3 text-sm text-slate-700">
+                              <span className="block text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                                Fats
+                              </span>
+                              <span className="mt-2 block font-semibold text-slate-950">
+                                {Math.round(meal.fats * 10) / 10} g
+                              </span>
+                            </div>
+                            <div className="rounded-2xl bg-white px-3 py-3 text-sm text-slate-700">
+                              <span className="block text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                                Base unit
+                              </span>
+                              <span className="mt-2 block font-semibold text-slate-950">
+                                {meal.baseUnit}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
-                      No diet guidance has been added to this plan yet.
+                      No nutrition data has been added to this plan yet.
                     </div>
                   )}
 
@@ -649,8 +694,8 @@ export default function MyPlans() {
                       Premium nutrition flow
                     </div>
                     <p className="mt-2 text-sm text-slate-200">
-                      Tap the swap icon to preview meal alternatives without
-                      cluttering the plan view.
+                      Smart macro summaries update automatically for each meal
+                      in the plan.
                     </p>
                   </div>
                 </div>
