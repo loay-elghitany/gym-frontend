@@ -488,6 +488,27 @@ export default function MyPlans() {
                                     >
                                       {isCompleted ? "✓" : index + 1}
                                     </span>
+                                    {exercise.gifUrl ? (
+                                      <button
+                                        type="button"
+                                        aria-label={`Open animation for ${exercise.name}`}
+                                        onClick={() =>
+                                          window.open(
+                                            exercise.gifUrl,
+                                            "_blank",
+                                            "noopener,noreferrer",
+                                          )
+                                        }
+                                        className="inline-flex shrink-0 rounded-[18px] border border-slate-200 bg-white p-1 shadow-sm transition hover:border-sky-200 hover:shadow-md"
+                                      >
+                                        <img
+                                          src={exercise.gifUrl}
+                                          alt={exercise.name}
+                                          className="h-14 w-14 rounded-[14px] object-cover"
+                                          loading="lazy"
+                                        />
+                                      </button>
+                                    ) : null}
                                     <div>
                                       <p className="text-base font-semibold text-slate-950">
                                         {exercise.name}

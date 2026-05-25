@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
+import ExerciseAutocomplete from "./ExerciseAutocomplete";
 import useBodyScrollLock from "../hooks/useBodyScrollLock";
 
 export default function SmartTemplatesBuilder() {
@@ -8,7 +9,7 @@ export default function SmartTemplatesBuilder() {
   const [modalOpen, setModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [newExercises, setNewExercises] = useState([
-    { name: "", sets: "", reps: "" },
+    { name: "", sets: "", reps: "", gifUrl: "" },
   ]);
   const [newDietNotes, setNewDietNotes] = useState([""]);
   const [saving, setSaving] = useState(false);
@@ -38,7 +39,7 @@ export default function SmartTemplatesBuilder() {
   const closeModal = () => {
     setModalOpen(false);
     setTemplateName("");
-    setNewExercises([{ name: "", sets: "", reps: "" }]);
+    setNewExercises([{ name: "", sets: "", reps: "", gifUrl: "" }]);
     setNewDietNotes([""]);
     setSaving(false);
     setMessage(null);
@@ -49,9 +50,38 @@ export default function SmartTemplatesBuilder() {
 
   const updateExercise = (index, field, value) => {
     setNewExercises((prev) =>
-      prev.map((exercise, idx) =>
-        idx === index ? { ...exercise, [field]: value } : exercise,
-      ),
+      prev.map((exercise, idx) => {
+        if (idx !== index) {
+          return exercise;
+        }
+
+        const nextExercise = { ...exercise, [field]: value };
+
+        if (field === "name") {
+          nextExercise.gifUrl = "";
+        }
+
+        return nextExercise;
+      }),
+    );
+  };
+
+  const selectExercise = (index, selectedExercise) => {
+    setNewExercises((prev) =>
+      prev.map((exercise, idx) => {
+        if (idx !== index) {
+          return exercise;
+        }
+
+        return {
+          ...exercise,
+          name:
+            selectedExercise?.nameAr?.trim() ||
+            selectedExercise?.nameEn?.trim() ||
+            exercise.name,
+          gifUrl: selectedExercise?.gifUrl?.trim() || "",
+        };
+      }),
     );
   };
 
@@ -60,7 +90,10 @@ export default function SmartTemplatesBuilder() {
   };
 
   const addExercise = () => {
-    setNewExercises((prev) => [...prev, { name: "", sets: "", reps: "" }]);
+    setNewExercises((prev) => [
+      ...prev,
+      { name: "", sets: "", reps: "", gifUrl: "" },
+    ]);
   };
 
   const updateDietNote = (index, value) => {
@@ -92,6 +125,7 @@ export default function SmartTemplatesBuilder() {
           sets: Number(exercise.sets) || 0,
           reps: exercise.reps.trim(),
           notes: exercise.notes?.trim() || "",
+          gifUrl: exercise.gifUrl?.trim() || "",
         })),
       meals: newDietNotes
         .filter((note) => note.trim())
@@ -301,16 +335,17 @@ export default function SmartTemplatesBuilder() {
                   {newExercises.map((exercise, index) => (
                     <div
                       key={index}
-                      className="grid gap-3 rounded-3xl bg-white p-4 shadow-sm sm:grid-cols-[1.5fr_1fr_1fr_auto]"
+                      className="grid gap-3 rounded-3xl bg-white p-4 shadow-sm sm:grid-cols-[1.4fr_0.8fr_0.8fr_auto]"
                     >
-                      <input
+                      <ExerciseAutocomplete
                         value={exercise.name}
-                        onChange={(event) =>
-                          updateExercise(index, "name", event.target.value)
+                        onValueChange={(nextValue) =>
+                          updateExercise(index, "name", nextValue)
                         }
-                        className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                        placeholder="Exercise name"
-                        required
+                        onSelect={(selectedExercise) =>
+                          selectExercise(index, selectedExercise)
+                        }
+                        placeholder="Search exercise or type custom"
                       />
                       <input
                         value={exercise.sets}

@@ -12,7 +12,7 @@ export default function TrainerPlans() {
   const [templateName, setTemplateName] = useState("");
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [exercises, setExercises] = useState([
-    { name: "", sets: "", reps: "", notes: "" },
+    { name: "", sets: "", reps: "", notes: "", gifUrl: "" },
   ]);
 
   useBodyScrollLock(templateModalOpen);
@@ -92,7 +92,7 @@ export default function TrainerPlans() {
   const addExercise = () => {
     setExercises((current) => [
       ...current,
-      { name: "", sets: "", reps: "", notes: "" },
+      { name: "", sets: "", reps: "", notes: "", gifUrl: "" },
     ]);
   };
 
@@ -134,8 +134,9 @@ export default function TrainerPlans() {
             sets: exercise.sets !== undefined ? String(exercise.sets) : "",
             reps: exercise.reps || "",
             notes: exercise.notes || "",
+            gifUrl: exercise.gifUrl || "",
           }))
-        : [{ name: "", sets: "", reps: "", notes: "" }],
+        : [{ name: "", sets: "", reps: "", notes: "", gifUrl: "" }],
     );
     setMeals(
       Array.isArray(template.meals) && template.meals.length
@@ -170,6 +171,7 @@ export default function TrainerPlans() {
           sets: exercise.sets ? Number(exercise.sets) : 0,
           reps: exercise.reps.trim(),
           notes: exercise.notes.trim(),
+          gifUrl: exercise.gifUrl?.trim() || "",
         })),
       meals: meals
         .filter((meal) => meal.mealName.trim())
@@ -220,6 +222,7 @@ export default function TrainerPlans() {
           sets: exercise.sets ? Number(exercise.sets) : undefined,
           reps: exercise.reps.trim() || undefined,
           notes: exercise.notes.trim() || undefined,
+          gifUrl: exercise.gifUrl?.trim() || undefined,
         }))
         .filter((item) => item.name || item.sets || item.reps || item.notes);
 
@@ -245,7 +248,7 @@ export default function TrainerPlans() {
       setMessage(res?.data?.message || "Plan created");
       setTitle("");
       setDescription("");
-      setExercises([{ name: "", sets: "", reps: "", notes: "" }]);
+      setExercises([{ name: "", sets: "", reps: "", notes: "", gifUrl: "" }]);
       setMeals([{ mealName: "", description: "" }]);
       setAssigned([]);
       setMemberSearch("");
