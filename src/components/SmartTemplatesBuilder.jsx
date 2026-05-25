@@ -335,24 +335,26 @@ export default function SmartTemplatesBuilder() {
                   {newExercises.map((exercise, index) => (
                     <div
                       key={index}
-                      className="grid gap-3 rounded-3xl bg-white p-4 shadow-sm sm:grid-cols-[1.4fr_0.8fr_0.8fr_auto]"
+                      className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm sm:flex-row sm:items-start"
                     >
-                      <ExerciseAutocomplete
-                        value={exercise.name}
-                        onValueChange={(nextValue) =>
-                          updateExercise(index, "name", nextValue)
-                        }
-                        onSelect={(selectedExercise) =>
-                          selectExercise(index, selectedExercise)
-                        }
-                        placeholder="Search exercise or type custom"
-                      />
+                      <div className="w-full flex-1">
+                        <ExerciseAutocomplete
+                          value={exercise.name}
+                          onValueChange={(nextValue) =>
+                            updateExercise(index, "name", nextValue)
+                          }
+                          onSelect={(selectedExercise) =>
+                            selectExercise(index, selectedExercise)
+                          }
+                          placeholder="Search exercise or type custom"
+                        />
+                      </div>
                       <input
                         value={exercise.sets}
                         onChange={(event) =>
                           updateExercise(index, "sets", event.target.value)
                         }
-                        className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none sm:w-24"
                         placeholder="Sets"
                         required
                       />
@@ -361,14 +363,14 @@ export default function SmartTemplatesBuilder() {
                         onChange={(event) =>
                           updateExercise(index, "reps", event.target.value)
                         }
-                        className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none sm:w-24"
                         placeholder="Reps"
                         required
                       />
                       <button
                         onClick={() => removeExercise(index)}
                         type="button"
-                        className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                        className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 sm:w-auto"
                       >
                         Remove
                       </button>
