@@ -18,12 +18,6 @@ const defaultConfig = {
   isActive: false,
 };
 
-const previewSample = [
-  "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80",
-];
-
 export default function LandingPageBuilder() {
   const { tenant } = useAuth();
   const [config, setConfig] = useState(defaultConfig);
@@ -559,25 +553,6 @@ export default function LandingPageBuilder() {
               >
                 View Plans
               </button>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Preview gallery
-            </h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {(config.galleryUrls.length > 0
-                ? config.galleryUrls
-                : previewSample
-              ).map((url, index) => (
-                <img
-                  key={`${url}-${index}`}
-                  src={url}
-                  alt={`Preview gallery ${index + 1}`}
-                  className="h-28 w-full rounded-2xl object-cover"
-                />
-              ))}
             </div>
           </div>
         </aside>
