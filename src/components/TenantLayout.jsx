@@ -10,6 +10,7 @@ const roleNavItems = {
     { label: "nav.members", path: "members", icon: "users" },
     { label: "nav.subscriptions", path: "subscriptions", icon: "credit-card" },
     { label: "nav.reports", path: "reports", icon: "chart" },
+    { label: "nav.landingPage", path: "owner/landing-page", icon: "sparkles" },
     { label: "nav.scanQr", path: "quick-scanner", icon: "qr" },
   ],
   receptionist: [
@@ -114,6 +115,12 @@ function NavIcon({ type }) {
       return (
         <svg viewBox="0 0 24 24" aria-hidden className={iconClasses}>
           <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4Z" />
+        </svg>
+      );
+    case "sparkles":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden className={iconClasses}>
+          <path d="M12 2l2.3 4.7 5.2.7-3.7 3.6.9 5.1-4.7-2.5-4.7 2.5.9-5.1L4.5 7.4l5.2-.7L12 2Zm0 6.5 1.2 2.3 2.6.3-1.8 1.7.4 2.5L12 13.5l-2.4 1.3.4-2.5-1.8-1.7 2.6-.3L12 8.5Zm8 7.2-1.4 2.7-2.7 1.4 2.7 1.4 1.4 2.7 1.4-2.7 2.7-1.4-2.7-1.4-1.4-2.7Z" />
         </svg>
       );
     default:

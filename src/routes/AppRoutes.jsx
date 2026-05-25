@@ -3,6 +3,7 @@ import { useAuth } from "../context/authContextValue";
 import { detectTenantFromLocation } from "../utils/tenantUtils";
 import FeaturePlaceholder from "../components/FeaturePlaceholder";
 import GymOwnerDashboard from "../pages/gym-owner/GymOwnerDashboard";
+import LandingPageBuilder from "../pages/gym-owner/LandingPageBuilder";
 import MembersPage from "../pages/gym-owner/MembersPage";
 import ReportsPage from "../pages/gym-owner/ReportsPage";
 import SubscriptionsPage from "../pages/gym-owner/SubscriptionsPage";
@@ -26,6 +27,7 @@ import QuickScanner from "../pages/owner/QuickScanner";
 import TenantLayout from "../components/TenantLayout";
 import TenantNotFoundPage from "../pages/error/TenantNotFoundPage";
 import NotFoundPage from "../pages/error/NotFoundPage";
+import GymLandingPage from "../pages/tenant/GymLandingPage";
 
 const normalizeRouteRole = (rawRole) => {
   if (!rawRole) {
@@ -130,10 +132,23 @@ const DashboardRouter = () => {
   }
 };
 
+const RootLandingRoute = () => {
+  if (typeof window === "undefined") {
+    return <TenantLandingPage />;
+  }
+
+  const tenantFromHost = detectTenantFromLocation(window.location);
+  if (tenantFromHost?.slug) {
+    return <GymLandingPage />;
+  }
+
+  return <TenantLandingPage />;
+};
+
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<TenantLandingPage />} />
+      <Route path="/" element={<RootLandingRoute />} />
       <Route path="/admin-login" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
@@ -199,6 +214,14 @@ export default function AppRoutes() {
             element={
               <ProtectedRoute allowedRoles={["gym_owner"]}>
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owner/landing-page"
+            element={
+              <ProtectedRoute allowedRoles={["gym_owner"]}>
+                <LandingPageBuilder />
               </ProtectedRoute>
             }
           />

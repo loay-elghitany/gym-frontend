@@ -25,15 +25,16 @@ const toNumber = (value) => {
 
 const getCalculatedMacros = (meal) => {
   const quantity = toNumber(meal.quantity);
-  const baseUnit = String(meal.baseUnit || "100g").trim().toLowerCase();
+  const baseUnit = String(meal.baseUnit || "100g")
+    .trim()
+    .toLowerCase();
   const multiplier =
     baseUnit === "100g" || baseUnit === "100 g" ? quantity / 100 : quantity;
 
   return {
     calories:
       meal.calories === null ? null : toNumber(meal.calories) * multiplier,
-    protein:
-      meal.protein === null ? null : toNumber(meal.protein) * multiplier,
+    protein: meal.protein === null ? null : toNumber(meal.protein) * multiplier,
     carbs: meal.carbs === null ? null : toNumber(meal.carbs) * multiplier,
     fats: meal.fats === null ? null : toNumber(meal.fats) * multiplier,
   };
@@ -433,8 +434,18 @@ export default function TrainerPlans() {
                       handleExerciseChange(index, "name", nextValue)
                     }
                     onSelect={(selectedExercise) => {
-                      handleExerciseChange(index, "name", selectedExercise?.nameAr?.trim() || selectedExercise?.nameEn?.trim() || exercise.name);
-                      handleExerciseChange(index, "gifUrl", selectedExercise?.gifUrl?.trim() || "");
+                      handleExerciseChange(
+                        index,
+                        "name",
+                        selectedExercise?.nameAr?.trim() ||
+                          selectedExercise?.nameEn?.trim() ||
+                          exercise.name,
+                      );
+                      handleExerciseChange(
+                        index,
+                        "gifUrl",
+                        selectedExercise?.gifUrl?.trim() || "",
+                      );
                     }}
                     placeholder="Search exercise or type custom"
                   />
@@ -484,7 +495,8 @@ export default function TrainerPlans() {
                 Diet meals
               </label>
               <p className="text-xs text-slate-500">
-                Search the food library, add quantity, and preview live macros in real time.
+                Search the food library, add quantity, and preview live macros
+                in real time.
               </p>
             </div>
             <button
@@ -516,7 +528,9 @@ export default function TrainerPlans() {
                         onValueChange={(nextValue) =>
                           updateMeal(index, "mealName", nextValue)
                         }
-                        onSelect={(selectedFood) => selectFood(index, selectedFood)}
+                        onSelect={(selectedFood) =>
+                          selectFood(index, selectedFood)
+                        }
                         placeholder="Search food or type custom"
                       />
                     </div>
