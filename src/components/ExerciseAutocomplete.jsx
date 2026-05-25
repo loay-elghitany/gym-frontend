@@ -125,7 +125,7 @@ export default function ExerciseAutocomplete({
   const currentLabel = query.trim() || placeholder;
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative w-full ${className}`}>
       <input
         value={query}
         onChange={handleChange}
@@ -137,20 +137,20 @@ export default function ExerciseAutocomplete({
           }, 120);
         }}
         onKeyDown={handleKeyDown}
-        className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+        className="w-full min-h-[3rem] rounded-3xl border border-slate-200 bg-slate-50/95 px-4 py-3 text-base text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200 sm:text-sm"
         placeholder={placeholder}
         disabled={disabled}
         autoComplete="off"
       />
 
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute top-full left-0 z-50 mt-1 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
           {isSearching ? (
-            <div className="px-4 py-3 text-sm text-slate-500">
+            <div className="px-4 py-4 text-sm text-slate-500 dark:text-slate-200">
               Searching exercises...
             </div>
           ) : results.length ? (
-            <div className="max-h-72 overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto sm:max-h-60">
               {results.map((item, index) => {
                 const label =
                   item?.nameAr && item?.nameEn
@@ -163,30 +163,30 @@ export default function ExerciseAutocomplete({
                     key={item?._id || `${item?.nameEn}-${index}`}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelect(item)}
-                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${
+                    className={`flex w-full min-h-[4.1rem] items-center gap-3 px-4 py-3 text-left transition sm:min-h-[3.75rem] ${
                       activeIndex === index
-                        ? "bg-slate-100"
-                        : "hover:bg-slate-50"
+                        ? "bg-slate-100 dark:bg-slate-700"
+                        : "hover:bg-slate-50 dark:hover:bg-slate-700/80"
                     }`}
                   >
                     {item?.gifUrl ? (
                       <img
                         src={item.gifUrl}
                         alt={label}
-                        className="h-12 w-12 rounded-2xl border border-slate-200 object-cover"
+                        className="h-12 w-12 flex-shrink-0 rounded-2xl border border-slate-200 object-cover"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                         GIF
                       </div>
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900">
+                      <p className="truncate text-sm font-semibold leading-5 text-slate-900 dark:text-slate-100">
                         {label}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 truncate text-xs leading-4 text-slate-500 dark:text-slate-300">
                         {item?.targetMuscle || "Smart exercise library"}
                       </p>
                     </div>
@@ -195,7 +195,7 @@ export default function ExerciseAutocomplete({
               })}
             </div>
           ) : (
-            <div className="px-4 py-3 text-sm text-slate-500">
+            <div className="px-4 py-4 text-sm leading-6 text-slate-500 dark:text-slate-200">
               {currentLabel === placeholder
                 ? "Type to search the global exercise library."
                 : "No exact matches found — your custom text will still be saved."}
