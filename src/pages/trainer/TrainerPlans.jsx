@@ -1,6 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import ExerciseAutocomplete from "../../components/ExerciseAutocomplete";
+import FoodAutocomplete from "../../components/FoodAutocomplete";
 import useBodyScrollLock from "../../hooks/useBodyScrollLock";
+
+const emptyMeal = {
+  mealName: "",
+  quantity: "",
+  calories: null,
+  protein: null,
+  carbs: null,
+  fats: null,
+  baseUnit: "100g",
+};
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getCalculatedMacros = (meal) => {
+  const quantity = toNumber(meal.quantity);
+  const baseUnit = String(meal.baseUnit || "100g").trim().toLowerCase();
+  const multiplier =
+    baseUnit === "100g" || baseUnit === "100 g" ? quantity / 100 : quantity;
+
+  return {
+    calories:
+      meal.calories === null ? null : toNumber(meal.calories) * multiplier,
+    protein:
+      meal.protein === null ? null : toNumber(meal.protein) * multiplier,
+    carbs: meal.carbs === null ? null : toNumber(meal.carbs) * multiplier,
+    fats: meal.fats === null ? null : toNumber(meal.fats) * multiplier,
+  };
+};
 
 export default function TrainerPlans() {
   const [members, setMembers] = useState([]);
@@ -16,12 +53,28 @@ export default function TrainerPlans() {
   ]);
 
   useBodyScrollLock(templateModalOpen);
-  const [meals, setMeals] = useState([{ mealName: "", description: "" }]);
+  const [meals, setMeals] = useState([emptyMeal]);
   const [assigned, setAssigned] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [messageTone, setMessageTone] = useState("neutral");
+
+  const planTotals = useMemo(() => {
+    return meals.reduce(
+      (totals, meal) => {
+        const macros = getCalculatedMacros(meal);
+
+        return {
+          calories: totals.calories + (macros.calories || 0),
+          protein: totals.protein + (macros.protein || 0),
+          carbs: totals.carbs + (macros.carbs || 0),
+          fats: totals.fats + (macros.fats || 0),
+        };
+      },
+      { calories: 0, protein: 0, carbs: 0, fats: 0 },
+    );
+  }, [meals]);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -100,16 +153,53 @@ export default function TrainerPlans() {
     setExercises((current) => current.filter((_, idx) => idx !== index));
   };
 
-  const handleMealChange = (index, field, value) => {
+  const updateMeal = (index, field, value) => {
     setMeals((current) =>
-      current.map((meal, idx) =>
-        idx === index ? { ...meal, [field]: value } : meal,
-      ),
+      current.map((meal, idx) => {
+        if (idx !== index) {
+          return meal;
+        }
+
+        const nextMeal = { ...meal, [field]: value };
+
+        if (field === "mealName") {
+          nextMeal.calories = null;
+          nextMeal.protein = null;
+          nextMeal.carbs = null;
+          nextMeal.fats = null;
+          nextMeal.baseUnit = "100g";
+        }
+
+        return nextMeal;
+      }),
+    );
+  };
+
+  const selectFood = (index, selectedFood) => {
+    setMeals((current) =>
+      current.map((meal, idx) => {
+        if (idx !== index) {
+          return meal;
+        }
+
+        return {
+          ...meal,
+          mealName:
+            selectedFood?.nameAr?.trim() ||
+            selectedFood?.nameEn?.trim() ||
+            meal.mealName,
+          calories: Number(selectedFood?.calories) || 0,
+          protein: Number(selectedFood?.protein) || 0,
+          carbs: Number(selectedFood?.carbs) || 0,
+          fats: Number(selectedFood?.fats) || 0,
+          baseUnit: selectedFood?.baseUnit || "100g",
+        };
+      }),
     );
   };
 
   const addMeal = () => {
-    setMeals((current) => [...current, { mealName: "", description: "" }]);
+    setMeals((current) => [...current, { ...emptyMeal }]);
   };
 
   const removeMeal = (index) => {
@@ -141,10 +231,18 @@ export default function TrainerPlans() {
     setMeals(
       Array.isArray(template.meals) && template.meals.length
         ? template.meals.map((meal) => ({
-            mealName: meal.mealName || "",
-            description: meal.description || "",
+            mealName: meal.mealName || meal.item || "",
+            quantity:
+              meal.quantity !== undefined && meal.quantity !== null
+                ? String(meal.quantity)
+                : "",
+            calories: meal.calories ?? null,
+            protein: meal.protein ?? null,
+            carbs: meal.carbs ?? null,
+            fats: meal.fats ?? null,
+            baseUnit: meal.baseUnit || "100g",
           }))
-        : [{ mealName: "", description: "" }],
+        : [emptyMeal],
     );
   };
 
@@ -177,7 +275,13 @@ export default function TrainerPlans() {
         .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
           mealName: meal.mealName.trim(),
-          description: meal.description.trim(),
+          description: "",
+          quantity: Number(meal.quantity) || 0,
+          calories: meal.calories === null ? null : Number(meal.calories) || 0,
+          protein: meal.protein === null ? null : Number(meal.protein) || 0,
+          carbs: meal.carbs === null ? null : Number(meal.carbs) || 0,
+          fats: meal.fats === null ? null : Number(meal.fats) || 0,
+          baseUnit: meal.baseUnit || "100g",
         })),
     };
 
@@ -227,14 +331,11 @@ export default function TrainerPlans() {
         .filter((item) => item.name || item.sets || item.reps || item.notes);
 
       const dietNotes = meals
+        .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
-          item: meal.mealName.trim() || meal.description.trim(),
-          alternatives:
-            meal.mealName.trim() && meal.description.trim()
-              ? [meal.description.trim()]
-              : [],
-        }))
-        .filter((note) => note.item);
+          item: meal.mealName.trim(),
+          alternatives: [],
+        }));
 
       const payload = {
         title,
@@ -249,7 +350,7 @@ export default function TrainerPlans() {
       setTitle("");
       setDescription("");
       setExercises([{ name: "", sets: "", reps: "", notes: "", gifUrl: "" }]);
-      setMeals([{ mealName: "", description: "" }]);
+      setMeals([emptyMeal]);
       setAssigned([]);
       setMemberSearch("");
     } catch (err) {
@@ -308,7 +409,7 @@ export default function TrainerPlans() {
                 Workout exercises
               </label>
               <p className="text-xs text-slate-500">
-                Add exercises with sets, reps and optional notes.
+                Add exercises with smart search, sets, reps, and optional notes.
               </p>
             </div>
             <button
@@ -323,24 +424,28 @@ export default function TrainerPlans() {
             {exercises.map((exercise, index) => (
               <div
                 key={index}
-                className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1.5fr_1fr_1fr_1fr_auto]"
+                className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm xl:flex-row xl:items-start"
               >
-                <input
-                  placeholder="Exercise name"
-                  value={exercise.name}
-                  onChange={(e) =>
-                    handleExerciseChange(index, "name", e.target.value)
-                  }
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
-                  required={!exercise.notes && !exercise.reps && !exercise.sets}
-                />
+                <div className="flex-1 min-w-0">
+                  <ExerciseAutocomplete
+                    value={exercise.name}
+                    onValueChange={(nextValue) =>
+                      handleExerciseChange(index, "name", nextValue)
+                    }
+                    onSelect={(selectedExercise) => {
+                      handleExerciseChange(index, "name", selectedExercise?.nameAr?.trim() || selectedExercise?.nameEn?.trim() || exercise.name);
+                      handleExerciseChange(index, "gifUrl", selectedExercise?.gifUrl?.trim() || "");
+                    }}
+                    placeholder="Search exercise or type custom"
+                  />
+                </div>
                 <input
                   placeholder="Sets"
                   value={exercise.sets}
                   onChange={(e) =>
                     handleExerciseChange(index, "sets", e.target.value)
                   }
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
                   type="number"
                   min="0"
                 />
@@ -350,7 +455,7 @@ export default function TrainerPlans() {
                   onChange={(e) =>
                     handleExerciseChange(index, "reps", e.target.value)
                   }
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
                 />
                 <input
                   placeholder="Notes"
@@ -358,12 +463,12 @@ export default function TrainerPlans() {
                   onChange={(e) =>
                     handleExerciseChange(index, "notes", e.target.value)
                   }
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
+                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none xl:flex-1"
                 />
                 <button
                   type="button"
                   onClick={() => removeExercise(index)}
-                  className="rounded-3xl bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600"
+                  className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 xl:w-auto"
                 >
                   Remove
                 </button>
@@ -379,7 +484,7 @@ export default function TrainerPlans() {
                 Diet meals
               </label>
               <p className="text-xs text-slate-500">
-                Add meals and a short description for each.
+                Search the food library, add quantity, and preview live macros in real time.
               </p>
             </div>
             <button
@@ -391,36 +496,115 @@ export default function TrainerPlans() {
             </button>
           </div>
           <div className="space-y-3">
-            {meals.map((meal, index) => (
-              <div
-                key={index}
-                className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1.5fr_2fr_auto]"
-              >
-                <input
-                  placeholder="Meal name"
-                  value={meal.mealName}
-                  onChange={(e) =>
-                    handleMealChange(index, "mealName", e.target.value)
-                  }
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
-                />
-                <input
-                  placeholder="Description"
-                  value={meal.description}
-                  onChange={(e) =>
-                    handleMealChange(index, "description", e.target.value)
-                  }
-                  className="rounded-3xl border border-slate-200 px-4 py-3"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeMeal(index)}
-                  className="rounded-3xl bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600"
+            {meals.map((meal, index) => {
+              const calculated = getCalculatedMacros(meal);
+              const hasMacroData =
+                meal.calories !== null ||
+                meal.protein !== null ||
+                meal.carbs !== null ||
+                meal.fats !== null;
+
+              return (
+                <div
+                  key={index}
+                  className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  Remove
-                </button>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+                    <div className="flex-1 min-w-0">
+                      <FoodAutocomplete
+                        value={meal.mealName}
+                        onValueChange={(nextValue) =>
+                          updateMeal(index, "mealName", nextValue)
+                        }
+                        onSelect={(selectedFood) => selectFood(index, selectedFood)}
+                        placeholder="Search food or type custom"
+                      />
+                    </div>
+
+                    <div className="xl:w-40">
+                      <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={meal.quantity}
+                        onChange={(event) =>
+                          updateMeal(index, "quantity", event.target.value)
+                        }
+                        className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        placeholder="200"
+                      />
+                    </div>
+
+                    <div className="xl:w-56">
+                      <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Live macros
+                      </span>
+                      <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">
+                        {hasMacroData
+                          ? `${Math.round(calculated.calories || 0)} kcal | ${Math.round((calculated.protein || 0) * 10) / 10}g P`
+                          : "Start typing to preview"}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeMeal(index)}
+                      className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 xl:w-auto"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="rounded-3xl bg-slate-950 px-4 py-4 text-white">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold">Total Plan Macros</p>
+                <p className="mt-1 text-sm text-slate-200">
+                  Live totals for the direct assignment before you save.
+                </p>
               </div>
-            ))}
+              <div className="grid gap-2 sm:grid-cols-4">
+                <div className="rounded-2xl bg-white/10 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                    Calories
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {Math.round(planTotals.calories)} kcal
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/10 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                    Protein
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {Math.round(planTotals.protein * 10) / 10} g
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/10 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                    Carbs
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {Math.round(planTotals.carbs * 10) / 10} g
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/10 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                    Fats
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {Math.round(planTotals.fats * 10) / 10} g
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
