@@ -190,10 +190,12 @@ export default function LandingPageBuilder() {
   };
 
   return (
-    <main className="space-y-8">
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-900/5">
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="max-w-3xl space-y-4">
+    <main className="min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
+      {/* Left Panel - Settings */}
+      <div className="w-full lg:w-[55%] overflow-y-auto scrollbar-hide">
+        <div className="p-6 lg:p-8">
+          {/* Page Header */}
+          <div className="mb-8 space-y-4">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-600">
               Landing Page Builder
             </p>
@@ -206,93 +208,20 @@ export default function LandingPageBuilder() {
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-3">
-            <span
-              className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
-                config.isActive
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {config.isActive ? "Public page enabled" : "Public page disabled"}
-            </span>
-            <p className="text-sm text-slate-500">
-              Your public page is available at your gym subdomain root.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-700">
-                Hero title
-                <input
-                  value={config.heroTitle}
-                  onChange={(event) =>
-                    updateField("heroTitle", event.target.value)
-                  }
-                  placeholder="Train harder. Stay motivated."
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
-                />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Theme color
-                <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
-                  <input
-                    type="color"
-                    value={config.themeColor}
-                    onChange={(event) =>
-                      updateField("themeColor", event.target.value)
-                    }
-                    className="h-10 w-10 rounded-lg border-0 bg-transparent"
-                  />
-                  <span className="text-sm text-slate-600">
-                    {config.themeColor}
-                  </span>
-                </div>
-              </label>
-            </div>
-
-            <label className="mt-6 block text-sm font-medium text-slate-700">
-              Hero subtitle
-              <textarea
-                value={config.heroSubtitle}
-                onChange={(event) =>
-                  updateField("heroSubtitle", event.target.value)
-                }
-                rows={4}
-                placeholder="Highlight your coaching style, classes, and community."
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
-              />
-            </label>
-
-            <label className="mt-6 block text-sm font-medium text-slate-700">
-              About text
-              <textarea
-                value={config.aboutText}
-                onChange={(event) =>
-                  updateField("aboutText", event.target.value)
-                }
-                rows={5}
-                placeholder="Describe your facilities, coaching philosophy, and community vibe."
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
-              />
-            </label>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-950">
-                  Public landing page
-                </h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  Turn the storefront on only when you are ready to publish it.
-                </p>
-              </div>
+          {/* Sticky Action Bar */}
+          <div className="sticky top-0 z-10 mb-6 bg-white/80 backdrop-blur-md pb-4 pt-2 border-b border-slate-100 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
+                  config.isActive
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {config.isActive
+                  ? "Public page enabled"
+                  : "Public page disabled"}
+              </span>
               <button
                 type="button"
                 role="switch"
@@ -309,254 +238,392 @@ export default function LandingPageBuilder() {
                 />
               </button>
             </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Media</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Upload your logo, hero cover, and gallery images to Cloudinary.
-            </p>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">Logo</p>
-                {config.logoUrl ? (
-                  <img
-                    src={config.logoUrl}
-                    alt="Logo preview"
-                    className="mt-3 h-20 w-auto rounded-xl object-contain"
-                  />
-                ) : null}
-                <label className="mt-3 block">
-                  <span className="sr-only">Upload logo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      handleUpload("logoUrl", event.target.files?.[0])
-                    }
-                    className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                  />
-                </label>
-                {uploading.logo ? (
-                  <p className="mt-3 text-sm text-slate-500">
-                    Uploading logo...
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">
-                  Hero cover
-                </p>
-                {config.coverUrl ? (
-                  <img
-                    src={config.coverUrl}
-                    alt="Cover preview"
-                    className="mt-3 h-32 w-full rounded-xl object-cover"
-                  />
-                ) : null}
-                <label className="mt-3 block">
-                  <span className="sr-only">Upload hero cover</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      handleUpload("coverUrl", event.target.files?.[0])
-                    }
-                    className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                  />
-                </label>
-                {uploading.cover ? (
-                  <p className="mt-3 text-sm text-slate-500">
-                    Uploading cover...
-                  </p>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Gallery images
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Add multiple photos to showcase your facilities and energy.
-                  </p>
-                </div>
-                <label className="inline-flex cursor-pointer items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                  Upload gallery image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleGalleryUpload}
-                    className="sr-only"
-                  />
-                </label>
-              </div>
-              {uploading.gallery ? (
-                <p className="mt-3 text-sm text-slate-500">
-                  Uploading gallery image...
-                </p>
-              ) : null}
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {config.galleryUrls.length > 0 ? (
-                  config.galleryUrls.map((url, index) => (
-                    <div
-                      key={`${url}-${index}`}
-                      className="rounded-2xl border border-slate-200 bg-white p-2"
-                    >
-                      <img
-                        src={url}
-                        alt={`Gallery ${index + 1}`}
-                        className="h-28 w-full rounded-xl object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setConfig((previous) => ({
-                            ...previous,
-                            galleryUrls: previous.galleryUrls.filter(
-                              (_, currentIndex) => currentIndex !== index,
-                            ),
-                          }))
-                        }
-                        className="mt-3 text-sm font-semibold text-rose-600"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-sm text-slate-500 sm:col-span-2 xl:col-span-3">
-                    No gallery images yet. Add a few photos to make your page
-                    feel premium.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Contact & social
-            </h2>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-700">
-                Facebook URL
-                <input
-                  value={config.facebookUrl}
-                  onChange={(event) =>
-                    updateField("facebookUrl", event.target.value)
-                  }
-                  placeholder="https://facebook.com/yourgym"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
-                />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Instagram URL
-                <input
-                  value={config.instagramUrl}
-                  onChange={(event) =>
-                    updateField("instagramUrl", event.target.value)
-                  }
-                  placeholder="https://instagram.com/yourgym"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
-                />
-              </label>
-              <label className="block text-sm font-medium text-slate-700 lg:col-span-2">
-                WhatsApp number
-                <input
-                  value={config.whatsappNumber}
-                  onChange={(event) =>
-                    updateField("whatsappNumber", event.target.value)
-                  }
-                  placeholder="966500000000"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4">
             <button
-              type="submit"
+              type="button"
+              onClick={handleSave}
               disabled={saving}
               className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {saving ? "Saving..." : "Save public landing page"}
+              {saving ? "Saving..." : "Save Changes"}
             </button>
+          </div>
+
+          <form onSubmit={handleSave} className="space-y-6">
+            {/* General Section */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950 mb-6">
+                General
+              </h2>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Hero title
+                  <input
+                    value={config.heroTitle}
+                    onChange={(event) =>
+                      updateField("heroTitle", event.target.value)
+                    }
+                    placeholder="Train harder. Stay motivated."
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Theme color
+                  <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+                    <input
+                      type="color"
+                      value={config.themeColor}
+                      onChange={(event) =>
+                        updateField("themeColor", event.target.value)
+                      }
+                      className="h-10 w-10 rounded-lg border-0 bg-transparent"
+                    />
+                    <span className="text-sm text-slate-600">
+                      {config.themeColor}
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <label className="mt-6 block text-sm font-medium text-slate-700">
+                Hero subtitle
+                <textarea
+                  value={config.heroSubtitle}
+                  onChange={(event) =>
+                    updateField("heroSubtitle", event.target.value)
+                  }
+                  rows={4}
+                  placeholder="Highlight your coaching style, classes, and community."
+                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
+                />
+              </label>
+
+              <label className="mt-6 block text-sm font-medium text-slate-700">
+                About text
+                <textarea
+                  value={config.aboutText}
+                  onChange={(event) =>
+                    updateField("aboutText", event.target.value)
+                  }
+                  rows={5}
+                  placeholder="Describe your facilities, coaching philosophy, and community vibe."
+                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
+                />
+              </label>
+            </div>
+
+            {/* Media Section */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950 mb-2">
+                Media
+              </h2>
+              <p className="text-sm text-slate-600 mb-6">
+                Upload your logo, hero cover, and gallery images to Cloudinary.
+              </p>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Logo</p>
+                  {config.logoUrl ? (
+                    <img
+                      src={config.logoUrl}
+                      alt="Logo preview"
+                      className="mt-3 h-20 w-auto rounded-xl object-contain"
+                    />
+                  ) : null}
+                  <label className="mt-3 block">
+                    <span className="sr-only">Upload logo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) =>
+                        handleUpload("logoUrl", event.target.files?.[0])
+                      }
+                      className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                    />
+                  </label>
+                  {uploading.logo ? (
+                    <p className="mt-3 text-sm text-slate-500">
+                      Uploading logo...
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Hero cover
+                  </p>
+                  {config.coverUrl ? (
+                    <img
+                      src={config.coverUrl}
+                      alt="Cover preview"
+                      className="mt-3 h-32 w-full rounded-xl object-cover"
+                    />
+                  ) : null}
+                  <label className="mt-3 block">
+                    <span className="sr-only">Upload hero cover</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) =>
+                        handleUpload("coverUrl", event.target.files?.[0])
+                      }
+                      className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                    />
+                  </label>
+                  {uploading.cover ? (
+                    <p className="mt-3 text-sm text-slate-500">
+                      Uploading cover...
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Gallery images
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Add multiple photos to showcase your facilities and
+                      energy.
+                    </p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                    Upload gallery image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleGalleryUpload}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+                {uploading.gallery ? (
+                  <p className="mt-3 text-sm text-slate-500">
+                    Uploading gallery image...
+                  </p>
+                ) : null}
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {config.galleryUrls.length > 0 ? (
+                    config.galleryUrls.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        className="rounded-2xl border border-slate-200 bg-white p-2"
+                      >
+                        <img
+                          src={url}
+                          alt={`Gallery ${index + 1}`}
+                          className="h-28 w-full rounded-xl object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig((previous) => ({
+                              ...previous,
+                              galleryUrls: previous.galleryUrls.filter(
+                                (_, currentIndex) => currentIndex !== index,
+                              ),
+                            }))
+                          }
+                          className="mt-3 text-sm font-semibold text-rose-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-sm text-slate-500 sm:col-span-2 xl:col-span-3">
+                      No gallery images yet. Add a few photos to make your page
+                      feel premium.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Contact & Social Section */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950 mb-6">
+                Contact & Social
+              </h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Facebook URL
+                  <input
+                    value={config.facebookUrl}
+                    onChange={(event) =>
+                      updateField("facebookUrl", event.target.value)
+                    }
+                    placeholder="https://facebook.com/yourgym"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Instagram URL
+                  <input
+                    value={config.instagramUrl}
+                    onChange={(event) =>
+                      updateField("instagramUrl", event.target.value)
+                    }
+                    placeholder="https://instagram.com/yourgym"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-700 lg:col-span-2">
+                  WhatsApp number
+                  <input
+                    value={config.whatsappNumber}
+                    onChange={(event) =>
+                      updateField("whatsappNumber", event.target.value)
+                    }
+                    placeholder="966500000000"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Status Messages */}
+            {error ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {error}
+              </div>
+            ) : null}
+
+            {status ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {status}
+              </div>
+            ) : null}
+
             <p className="text-sm text-slate-500">
               {loading
                 ? "Loading your current settings..."
                 : "Changes are applied to your subdomain instantly."}
             </p>
-          </div>
+          </form>
+        </div>
+      </div>
 
-          {error ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
-          ) : null}
-
-          {status ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              {status}
-            </div>
-          ) : null}
-        </form>
-
-        <aside className="space-y-6">
-          <div
-            className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 text-white shadow-lg"
-            style={{
-              backgroundImage: config.coverUrl
-                ? `linear-gradient(rgba(15,23,42,0.82), rgba(15,23,42,0.9)), url(${config.coverUrl})`
-                : "linear-gradient(135deg, #0f172a, #1d4ed8)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          >
-            <div className="p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                {config.logoUrl ? (
-                  <img
-                    src={config.logoUrl}
-                    alt="Logo"
-                    className="h-12 w-12 rounded-2xl border border-white/20 bg-white/10 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-lg font-semibold">
-                    {tenant?.displayName?.[0] || "G"}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-200">
-                    {tenant?.displayName || "Your gym"}
-                  </p>
-                  <p className="text-lg font-semibold">Preview</p>
+      {/* Right Panel - Live Preview */}
+      <div className="w-full lg:w-[45%] bg-slate-50 flex items-center justify-center sticky top-0 h-screen border-l border-slate-200 p-6 lg:p-8">
+        <div className="w-[320px] h-[650px] bg-white rounded-[3rem] border-8 border-slate-900 shadow-2xl overflow-hidden relative">
+          {/* Mobile Frame Content */}
+          <div className="h-full overflow-y-auto">
+            {/* Header */}
+            <div className="p-4 flex items-center gap-3 border-b border-slate-100">
+              {config.logoUrl ? (
+                <img
+                  src={config.logoUrl}
+                  alt="Logo"
+                  className="h-10 w-10 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-600">
+                  {tenant?.displayName?.[0] || "G"}
                 </div>
+              )}
+              <div>
+                <p className="text-xs font-semibold text-slate-900">
+                  {tenant?.displayName || "Your gym"}
+                </p>
+                <p className="text-[10px] text-slate-500">Landing Page</p>
               </div>
+            </div>
 
-              <h2 className="mt-6 text-3xl font-semibold leading-tight">
-                {config.heroTitle || "Your hero title goes here"}
+            {/* Hero Section */}
+            <div
+              className="relative h-48 bg-slate-900 flex flex-col justify-end p-4"
+              style={{
+                backgroundImage: config.coverUrl
+                  ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${config.coverUrl})`
+                  : "linear-gradient(135deg, #1e293b, #0f172a)",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <h2 className="text-xl font-bold text-white leading-tight">
+                {config.heroTitle || "Your hero title"}
               </h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-200">
-                {config.heroSubtitle ||
-                  "Add a powerful subtitle to convert your visitors into members."}
+              <p className="mt-2 text-xs text-slate-200 line-clamp-2">
+                {config.heroSubtitle || "Add a compelling subtitle"}
               </p>
               <button
                 type="button"
-                className="mt-6 rounded-full px-5 py-3 text-sm font-semibold text-white"
+                className="mt-3 rounded-full px-4 py-2 text-xs font-semibold text-white"
                 style={{ backgroundColor: config.themeColor }}
               >
-                View Plans
+                Join Now
               </button>
             </div>
+
+            {/* About Section */}
+            <div className="p-4">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">
+                About
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {config.aboutText ||
+                  "Describe your gym and what makes it special..."}
+              </p>
+            </div>
+
+            {/* Gallery Preview */}
+            {config.galleryUrls.length > 0 && (
+              <div className="p-4">
+                <h3 className="text-sm font-semibold text-slate-900 mb-2">
+                  Gallery
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {config.galleryUrls.slice(0, 4).map((url, index) => (
+                    <img
+                      key={`${url}-${index}`}
+                      src={url}
+                      alt={`Gallery ${index + 1}`}
+                      className="h-20 w-full rounded-lg object-cover"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Social Links */}
+            {(config.facebookUrl ||
+              config.instagramUrl ||
+              config.whatsappNumber) && (
+              <div className="p-4 border-t border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-900 mb-2">
+                  Connect
+                </h3>
+                <div className="flex gap-2">
+                  {config.facebookUrl && (
+                    <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">
+                        f
+                      </span>
+                    </div>
+                  )}
+                  {config.instagramUrl && (
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">
+                        ig
+                      </span>
+                    </div>
+                  )}
+                  {config.whatsappNumber && (
+                    <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
+                      <span className="text-[10px] text-white font-bold">
+                        wa
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </aside>
-      </section>
+        </div>
+      </div>
     </main>
   );
 }
