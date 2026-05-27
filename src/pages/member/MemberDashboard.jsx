@@ -31,6 +31,15 @@ export default function MemberDashboard() {
     return "active";
   }, [user]);
 
+  const daysUntilExpiry = useMemo(() => {
+    if (!user?.subscription?.expiresAt) return null;
+    const expiresAt = new Date(user.subscription.expiresAt);
+    const today = new Date();
+    const diffTime = expiresAt - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [user]);
+
   const remainingSessions = user?.subscription?.remainingSessions ?? 0;
   const expiresAtLabel = user?.subscription?.expiresAt
     ? new Date(user.subscription.expiresAt).toLocaleDateString()
@@ -109,6 +118,31 @@ export default function MemberDashboard() {
 
   return (
     <main className="space-y-10">
+      {/* Expiry Banner */}
+      {daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry > 0 && (
+        <div className="sticky top-0 z-50 rounded-4xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 shadow-lg">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-semibold text-orange-900">
+                  Your subscription expires in {daysUntilExpiry} day{daysUntilExpiry !== 1 ? "s" : ""}
+                </p>
+                <p className="text-sm text-orange-700">
+                  Please renew at the reception to avoid interruption.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => window.location.href = "/profile"}
+              className="rounded-full bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
+            >
+              View Details
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="rounded-4xl border border-slate-200 bg-white p-8 shadow-lg shadow-slate-900/5">
         <div className="max-w-3xl space-y-4">
           <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-600">

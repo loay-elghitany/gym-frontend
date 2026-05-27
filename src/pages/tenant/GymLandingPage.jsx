@@ -32,6 +32,10 @@ export default function GymLandingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [payload, setPayload] = useState(null);
+  const [leadForm, setLeadForm] = useState({ name: "", phone: "", email: "" });
+  const [submittingLead, setSubmittingLead] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState(false);
+  const [leadError, setLeadError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -92,6 +96,26 @@ export default function GymLandingPage() {
 
     return `https://wa.me/${cleanNumber}`;
   }, [config.whatsappNumber]);
+
+  const handleLeadSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingLead(true);
+    setLeadError("");
+    setLeadSuccess(false);
+
+    try {
+      const tenantSlug = getTenantSlugFromHost(window.location.hostname);
+      await api.post(`/landing/${tenantSlug}/leads`, leadForm);
+      setLeadSuccess(true);
+      setLeadForm({ name: "", phone: "", email: "" });
+    } catch (err) {
+      setLeadError(
+        err?.response?.data?.message || "Failed to submit. Please try again."
+      );
+    } finally {
+      setSubmittingLead(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -224,26 +248,58 @@ export default function GymLandingPage() {
             </div>
             <div className="rounded-[2rem] border border-white/10 bg-white/10 p-6 text-white backdrop-blur">
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-200">
-                What you can expect
+                Claim Your Free Trial
               </p>
-              <div className="mt-4 space-y-4 text-sm leading-7 text-slate-100">
-                <div className="rounded-2xl bg-slate-950/40 p-4">
-                  <p className="font-semibold text-white">Flexible training</p>
-                  <p>
-                    Personalized coaching, live classes, and results-oriented
-                    plans.
+              {leadSuccess ? (
+                <div className="mt-4 rounded-2xl bg-emerald-500/20 p-4 text-center">
+                  <p className="font-semibold text-emerald-200">
+                    ✓ Thank you! We'll contact you shortly.
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-950/40 p-4">
-                  <p className="font-semibold text-white">
-                    Community-first atmosphere
-                  </p>
-                  <p>
-                    Build confidence with the right support, energy, and
-                    accountability.
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <form onSubmit={handleLeadSubmit} className="mt-4 space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Your name"
+                    value={leadForm.name}
+                    onChange={(e) =>
+                      setLeadForm({ ...leadForm, name: e.target.value })
+                    }
+                    required
+                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-white/50 outline-none transition focus:border-white/40"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone number"
+                    value={leadForm.phone}
+                    onChange={(e) =>
+                      setLeadForm({ ...leadForm, phone: e.target.value })
+                    }
+                    required
+                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-white/50 outline-none transition focus:border-white/40"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email (optional)"
+                    value={leadForm.email}
+                    onChange={(e) =>
+                      setLeadForm({ ...leadForm, email: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-white/50 outline-none transition focus:border-white/40"
+                  />
+                  {leadError && (
+                    <p className="text-xs text-rose-300">{leadError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={submittingLead}
+                    className="w-full rounded-full px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ backgroundColor: config.themeColor || "#2563eb" }}
+                  >
+                    {submittingLead ? "Submitting..." : "Get Started"}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

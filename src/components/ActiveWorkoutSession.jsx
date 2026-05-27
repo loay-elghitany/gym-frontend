@@ -135,12 +135,14 @@ export default function ActiveWorkoutSession() {
                   Weight
                 </p>
                 <input
-                  type="text"
+                  type="number"
+                  step="0.5"
                   value={weightLogs[activeIndex] || ""}
                   onChange={(e) => handleLogWeight(e.target.value)}
-                  placeholder="kg/lbs"
-                  className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950"
+                  placeholder="kg"
+                  className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-sky-500"
                 />
+                <p className="mt-2 text-xs text-slate-500">Actual weight lifted (kg)</p>
               </div>
             </div>
           </div>
@@ -153,17 +155,56 @@ export default function ActiveWorkoutSession() {
               </span>
             </div>
             <div className="mt-5 rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Next break</p>
-              <p className="mt-3 text-4xl font-semibold text-slate-950">
-                {restSeconds}s
-              </p>
-              <button
-                type="button"
-                onClick={handleStartRest}
-                className="mt-4 inline-flex items-center justify-center rounded-3xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-              >
-                {timerRunning ? "Running..." : "Start Rest"}
-              </button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Next break</p>
+                  <p className="mt-3 text-4xl font-semibold text-slate-950">
+                    {restSeconds}s
+                  </p>
+                </div>
+                {/* Progress Circle */}
+                <div className="relative h-20 w-20">
+                  <svg className="h-20 w-20 -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-slate-200"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    />
+                    <path
+                      className="text-sky-600 transition-all duration-300"
+                      strokeDasharray={`${(restSeconds / 45) * 100}, 100`}
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleStartRest}
+                  disabled={timerRunning}
+                  className="flex-1 inline-flex items-center justify-center rounded-3xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {timerRunning ? "Running..." : "Start Rest"}
+                </button>
+                {timerRunning && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTimerRunning(false);
+                      setRestSeconds(0);
+                    }}
+                    className="rounded-3xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Skip
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -16,6 +16,11 @@ export default function InBodyRecords() {
   const [message, setMessage] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("inbody"); // "inbody" or "checkins"
+  const [checkIns, setCheckIns] = useState([]);
+  const [loadingCheckIns, setLoadingCheckIns] = useState(false);
+  const [feedbacks, setFeedbacks] = useState({});
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const [scanData, setScanData] = useState({
     weight: "",
@@ -93,10 +98,49 @@ export default function InBodyRecords() {
     loadRecords();
   }, [selectedMemberId]);
 
+  useEffect(() => {
+    const loadCheckIns = async () => {
+      if (!selectedMemberId || activeTab !== "checkins") {
+        setCheckIns([]);
+        return;
+      }
+      setLoadingCheckIns(true);
+      try {
+        const res = await api.get(`/trainer/checkins/${selectedMemberId}`);
+        setCheckIns(Array.isArray(res?.data?.data) ? res.data.data : []);
+      } catch (err) {
+        console.error("Failed to load check-ins:", err);
+      } finally {
+        setLoadingCheckIns(false);
+      }
+    };
+    loadCheckIns();
+  }, [selectedMemberId, activeTab]);
+
   const selectedMember = useMemo(
     () => members.find((member) => member._id === selectedMemberId) || null,
     [members, selectedMemberId],
   );
+
+  const handleAddFeedback = async (checkInId) => {
+    const text = (feedbacks[checkInId] || "").trim();
+    if (!text) return;
+    setSubmittingFeedback(true);
+    try {
+      await api.patch(`/trainer/checkins/${checkInId}/feedback`, {
+        feedback: text,
+      });
+      // Clear only this check-in's input
+      setFeedbacks((prev) => ({ ...prev, [checkInId]: "" }));
+      // Reload check-ins
+      const res = await api.get(`/trainer/checkins/${selectedMemberId}`);
+      setCheckIns(Array.isArray(res?.data?.data) ? res.data.data : []);
+    } catch (err) {
+      setMessage(err?.response?.data?.message || "Failed to add feedback");
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
   const pageRecords = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -279,337 +323,481 @@ export default function InBodyRecords() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                Weight
-              </p>
-              <p className="mt-4 text-3xl font-semibold text-white">
-                {latestMetrics.weight ? `${latestMetrics.weight} kg` : "—"}
-              </p>
-              <p className="mt-2 text-sm text-slate-400">
-                Body scale and weight progress.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                Muscle mass
-              </p>
-              <p className="mt-4 text-3xl font-semibold text-white">
-                {latestMetrics.skeletalMuscleMass
-                  ? `${latestMetrics.skeletalMuscleMass} kg`
-                  : "—"}
-              </p>
-              <p className="mt-2 text-sm text-slate-400">
-                Skeletal muscle measurement from the most recent scan.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                Body fat
-              </p>
-              <p className="mt-4 text-3xl font-semibold text-white">
-                {latestMetrics.bodyFatPercentage
-                  ? `${latestMetrics.bodyFatPercentage}%`
-                  : "—"}
-              </p>
-              <p className="mt-2 text-sm text-slate-400">
-                Percentage of fat mass from the latest composite scan.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                BMR
-              </p>
-              <p className="mt-4 text-3xl font-semibold text-white">
-                {latestMetrics.bmr ? `${latestMetrics.bmr} kcal` : "—"}
-              </p>
-              <p className="mt-2 text-sm text-slate-400">
-                Resting metabolic rate estimated from the scan.
-              </p>
-            </div>
-          </div>
+      {/* Tab Navigation */}
+      {selectedMemberId && (
+        <div className="flex gap-2 border-b border-slate-700 pb-4">
+          <button
+            onClick={() => setActiveTab("inbody")}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "inbody"
+                ? "bg-sky-500 text-slate-950"
+                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            }`}
+          >
+            InBody Records
+          </button>
+          <button
+            onClick={() => setActiveTab("checkins")}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "checkins"
+                ? "bg-sky-500 text-slate-950"
+                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            }`}
+          >
+            Weekly Check-ins
+          </button>
+        </div>
+      )}
 
-          <div className="rounded-4xl border border-slate-700 bg-slate-950/90 p-6 shadow-lg shadow-slate-950/20">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-white">
-                  Muscle-Fat Analysis
-                </h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Compare weight, muscle mass, and fat mass for the latest scan.
+      {activeTab === "checkins" && selectedMemberId ? (
+        <section className="rounded-4xl border border-slate-700 bg-slate-950/90 p-6">
+          <h2 className="text-2xl font-semibold text-white">
+            {selectedMember?.name}'s Weekly Check-ins
+          </h2>
+          {loadingCheckIns ? (
+            <div className="mt-4 text-sm text-slate-400">
+              Loading check-ins...
+            </div>
+          ) : checkIns.length > 0 ? (
+            <div className="mt-6 space-y-4">
+              {checkIns.map((checkIn) => (
+                <div
+                  key={checkIn._id}
+                  className="rounded-3xl border border-slate-700 bg-slate-900/80 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm font-semibold text-white">
+                          Week {checkIn.weekNumber}, {checkIn.year}
+                        </p>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            checkIn.trainerFeedback
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : "bg-amber-500/20 text-amber-400"
+                          }`}
+                        >
+                          {checkIn.trainerFeedback ? "Reviewed" : "Pending"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {new Date(checkIn.createdAt).toLocaleDateString()}
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-500">Weight</p>
+                          <p className="font-semibold text-white">
+                            {checkIn.currentWeight || "-"} kg
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-slate-500">Fatigue Level</p>
+                          <p className="font-semibold text-white">
+                            {checkIn.fatigueLevel}/10
+                          </p>
+                        </div>
+                      </div>
+                      {checkIn.notes && (
+                        <div className="mt-4">
+                          <p className="text-xs text-slate-500">Notes</p>
+                          <p className="mt-1 text-sm text-slate-300">
+                            {checkIn.notes}
+                          </p>
+                        </div>
+                      )}
+                      {checkIn.trainerFeedback && (
+                        <div className="mt-4 rounded-2xl bg-emerald-500/10 p-4">
+                          <p className="text-xs font-semibold text-emerald-400">
+                            Your Feedback
+                          </p>
+                          <p className="mt-1 text-sm text-emerald-200">
+                            {checkIn.trainerFeedback}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {!checkIn.trainerFeedback && (
+                    <div className="mt-4 rounded-2xl bg-slate-800 p-4">
+                      <p className="text-xs font-semibold text-slate-400">
+                        Add Feedback
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          type="text"
+                          value={feedbacks[checkIn._id] || ""}
+                          onChange={(e) =>
+                            setFeedbacks((prev) => ({
+                              ...prev,
+                              [checkIn._id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Encouragement or guidance..."
+                          className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-400 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => handleAddFeedback(checkIn._id)}
+                          disabled={
+                            submittingFeedback ||
+                            !(feedbacks[checkIn._id] || "").trim()
+                          }
+                          className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {submittingFeedback ? "Sending..." : "Send"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-3xl border border-dashed border-slate-700 bg-slate-950/50 p-8 text-center text-sm text-slate-500">
+              No weekly check-ins submitted yet
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                  Weight
+                </p>
+                <p className="mt-4 text-3xl font-semibold text-white">
+                  {latestMetrics.weight ? `${latestMetrics.weight} kg` : "—"}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Body scale and weight progress.
+                </p>
+              </div>
+              <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                  Muscle mass
+                </p>
+                <p className="mt-4 text-3xl font-semibold text-white">
+                  {latestMetrics.skeletalMuscleMass
+                    ? `${latestMetrics.skeletalMuscleMass} kg`
+                    : "—"}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Skeletal muscle measurement from the most recent scan.
+                </p>
+              </div>
+              <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                  Body fat
+                </p>
+                <p className="mt-4 text-3xl font-semibold text-white">
+                  {latestMetrics.bodyFatPercentage
+                    ? `${latestMetrics.bodyFatPercentage}%`
+                    : "—"}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Percentage of fat mass from the latest composite scan.
+                </p>
+              </div>
+              <div className="rounded-3xl border border-slate-700 bg-slate-950/90 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                  BMR
+                </p>
+                <p className="mt-4 text-3xl font-semibold text-white">
+                  {latestMetrics.bmr ? `${latestMetrics.bmr} kcal` : "—"}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Resting metabolic rate estimated from the scan.
                 </p>
               </div>
             </div>
-            <div className="mt-6 space-y-4">
-              {latestRecord ? (
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {[
-                    { label: "Weight", value: latestMetrics.weight || 0 },
-                    {
-                      label: "Muscle",
-                      value: latestMetrics.skeletalMuscleMass || 0,
-                    },
-                    { label: "Fat", value: latestMetrics.bodyFatMass || 0 },
-                  ].map((item) => {
-                    const width = `${Math.round((item.value / maxBarValue) * 100)}%`;
-                    return (
-                      <div
-                        key={item.label}
-                        className="space-y-2 rounded-3xl bg-slate-900 p-4"
-                      >
-                        <p className="text-sm font-semibold text-slate-300">
-                          {item.label}
-                        </p>
-                        <p className="text-3xl font-semibold text-white">
-                          {item.value || 0}
-                        </p>
-                        <div className="h-3 overflow-hidden rounded-full bg-slate-800">
-                          <div
-                            className="h-full rounded-full bg-sky-500"
-                            style={{ width }}
-                          />
+
+            <div className="rounded-4xl border border-slate-700 bg-slate-950/90 p-6 shadow-lg shadow-slate-950/20">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Muscle-Fat Analysis
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Compare weight, muscle mass, and fat mass for the latest
+                    scan.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 space-y-4">
+                {latestRecord ? (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {[
+                      { label: "Weight", value: latestMetrics.weight || 0 },
+                      {
+                        label: "Muscle",
+                        value: latestMetrics.skeletalMuscleMass || 0,
+                      },
+                      { label: "Fat", value: latestMetrics.bodyFatMass || 0 },
+                    ].map((item) => {
+                      const width = `${Math.round((item.value / maxBarValue) * 100)}%`;
+                      return (
+                        <div
+                          key={item.label}
+                          className="space-y-2 rounded-3xl bg-slate-900 p-4"
+                        >
+                          <p className="text-sm font-semibold text-slate-300">
+                            {item.label}
+                          </p>
+                          <p className="text-3xl font-semibold text-white">
+                            {item.value || 0}
+                          </p>
+                          <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+                            <div
+                              className="h-full rounded-full bg-sky-500"
+                              style={{ width }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-3xl bg-slate-900 p-6 text-sm text-slate-400">
+                    Select a member and save a scan to populate the analysis.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-4xl border border-slate-700 bg-slate-950/90 p-6 shadow-lg shadow-slate-950/20">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Trendline Overview
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Body fat percentage and skeletal muscle mass over time.
+                  </p>
+                </div>
+              </div>
+              {trendRecords.length ? (
+                <div className="mt-6 overflow-hidden rounded-3xl bg-slate-900 p-4">
+                  <div className="relative h-64 w-full">
+                    <svg viewBox="0 0 100 100" className="h-full w-full">
+                      <defs>
+                        <linearGradient
+                          id="trendA"
+                          x1="0%"
+                          y1="0%"
+                          x2="0%"
+                          y2="100%"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#38bdf8"
+                            stopOpacity="0.8"
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="#38bdf8"
+                            stopOpacity="0.1"
+                          />
+                        </linearGradient>
+                        <linearGradient
+                          id="trendB"
+                          x1="0%"
+                          y1="0%"
+                          x2="0%"
+                          y2="100%"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#f97316"
+                            stopOpacity="0.8"
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="#f97316"
+                            stopOpacity="0.1"
+                          />
+                        </linearGradient>
+                      </defs>
+                      <polyline
+                        fill="none"
+                        stroke="#38bdf8"
+                        strokeWidth="1.8"
+                        points={trendPoints.smm
+                          .map((point) => `${point.x},${point.y}`)
+                          .join(" ")}
+                      />
+                      <polyline
+                        fill="none"
+                        stroke="#f97316"
+                        strokeWidth="1.8"
+                        points={trendPoints.pbf
+                          .map((point) => `${point.x},${point.y}`)
+                          .join(" ")}
+                      />
+                      {trendPoints.labels.map((label, index) => (
+                        <g key={label}>
+                          <line
+                            x1={
+                              (index / (trendPoints.labels.length - 1 || 1)) *
+                              100
+                            }
+                            y1="0"
+                            x2={
+                              (index / (trendPoints.labels.length - 1 || 1)) *
+                              100
+                            }
+                            y2="100"
+                            stroke="rgba(148, 163, 184, 0.12)"
+                            strokeWidth="0.4"
+                          />
+                        </g>
+                      ))}
+                    </svg>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-3xl bg-slate-900 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                        Latest SMM
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-white">
+                        {latestMetrics.skeletalMuscleMass || "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-3xl bg-slate-900 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
+                        Latest PBF
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-white">
+                        {latestMetrics.bodyFatPercentage
+                          ? `${latestMetrics.bodyFatPercentage}%`
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="rounded-3xl bg-slate-900 p-6 text-sm text-slate-400">
-                  Select a member and save a scan to populate the analysis.
+                <div className="mt-6 rounded-3xl bg-slate-900 p-6 text-sm text-slate-400">
+                  Members with scan history will display trend lines here.
                 </div>
               )}
             </div>
           </div>
 
           <div className="rounded-4xl border border-slate-700 bg-slate-950/90 p-6 shadow-lg shadow-slate-950/20">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-white">
-                  Trendline Overview
+                  Scan history
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Body fat percentage and skeletal muscle mass over time.
+                  Recent InBody records for the selected member.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={openModal}
+                className="rounded-3xl bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600"
+              >
+                Add scan
+              </button>
             </div>
-            {trendRecords.length ? (
-              <div className="mt-6 overflow-hidden rounded-3xl bg-slate-900 p-4">
-                <div className="relative h-64 w-full">
-                  <svg viewBox="0 0 100 100" className="h-full w-full">
-                    <defs>
-                      <linearGradient
-                        id="trendA"
-                        x1="0%"
-                        y1="0%"
-                        x2="0%"
-                        y2="100%"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#38bdf8"
-                          stopOpacity="0.8"
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#38bdf8"
-                          stopOpacity="0.1"
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="trendB"
-                        x1="0%"
-                        y1="0%"
-                        x2="0%"
-                        y2="100%"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#f97316"
-                          stopOpacity="0.8"
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#f97316"
-                          stopOpacity="0.1"
-                        />
-                      </linearGradient>
-                    </defs>
-                    <polyline
-                      fill="none"
-                      stroke="#38bdf8"
-                      strokeWidth="1.8"
-                      points={trendPoints.smm
-                        .map((point) => `${point.x},${point.y}`)
-                        .join(" ")}
-                    />
-                    <polyline
-                      fill="none"
-                      stroke="#f97316"
-                      strokeWidth="1.8"
-                      points={trendPoints.pbf
-                        .map((point) => `${point.x},${point.y}`)
-                        .join(" ")}
-                    />
-                    {trendPoints.labels.map((label, index) => (
-                      <g key={label}>
-                        <line
-                          x1={
-                            (index / (trendPoints.labels.length - 1 || 1)) * 100
-                          }
-                          y1="0"
-                          x2={
-                            (index / (trendPoints.labels.length - 1 || 1)) * 100
-                          }
-                          y2="100"
-                          stroke="rgba(148, 163, 184, 0.12)"
-                          strokeWidth="0.4"
-                        />
-                      </g>
-                    ))}
-                  </svg>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-slate-900 p-4">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                      Latest SMM
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-white">
-                      {latestMetrics.skeletalMuscleMass || "—"}
-                    </p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-900 p-4">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                      Latest PBF
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-white">
-                      {latestMetrics.bodyFatPercentage
-                        ? `${latestMetrics.bodyFatPercentage}%`
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6 rounded-3xl bg-slate-900 p-6 text-sm text-slate-400">
-                Members with scan history will display trend lines here.
-              </div>
-            )}
-          </div>
-        </div>
 
-        <div className="rounded-4xl border border-slate-700 bg-slate-950/90 p-6 shadow-lg shadow-slate-950/20">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Scan history</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Recent InBody records for the selected member.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={openModal}
-              className="rounded-3xl bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600"
-            >
-              Add scan
-            </button>
-          </div>
-
-          <div className="mt-6 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
-            <table className="min-w-full divide-y divide-slate-800 text-left text-sm text-slate-300">
-              <thead className="bg-slate-950/90 text-slate-400">
-                <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Weight</th>
-                  <th className="px-4 py-3">Muscle</th>
-                  <th className="px-4 py-3">Fat %</th>
-                  <th className="px-4 py-3">BMR</th>
-                  <th className="px-4 py-3">Visceral</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {loadingRecords ? (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
+              <table className="min-w-full divide-y divide-slate-800 text-left text-sm text-slate-300">
+                <thead className="bg-slate-950/90 text-slate-400">
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="px-4 py-6 text-center text-slate-500"
-                    >
-                      Loading records...
-                    </td>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Weight</th>
+                    <th className="px-4 py-3">Muscle</th>
+                    <th className="px-4 py-3">Fat %</th>
+                    <th className="px-4 py-3">BMR</th>
+                    <th className="px-4 py-3">Visceral</th>
                   </tr>
-                ) : pageRecords.length ? (
-                  pageRecords.map((record) => (
-                    <tr key={record._id} className="border-b border-slate-800">
-                      <td className="px-4 py-4 text-slate-200">
-                        {new Date(record.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-4">{record.weight || "—"}</td>
-                      <td className="px-4 py-4">
-                        {record.skeletalMuscleMass || "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        {record.bodyFatPercentage || "—"}%
-                      </td>
-                      <td className="px-4 py-4">{record.bmr || "—"}</td>
-                      <td className="px-4 py-4">
-                        {record.visceralFatLevel || "—"}
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {loadingRecords ? (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        className="px-4 py-6 text-center text-slate-500"
+                      >
+                        Loading records...
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="px-4 py-6 text-center text-slate-500"
-                    >
-                      {selectedMemberId
-                        ? "No scans have been recorded for this member yet."
-                        : "Select a member to load InBody history."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : pageRecords.length ? (
+                    pageRecords.map((record) => (
+                      <tr
+                        key={record._id}
+                        className="border-b border-slate-800"
+                      >
+                        <td className="px-4 py-4 text-slate-200">
+                          {new Date(record.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-4">{record.weight || "—"}</td>
+                        <td className="px-4 py-4">
+                          {record.skeletalMuscleMass || "—"}
+                        </td>
+                        <td className="px-4 py-4">
+                          {record.bodyFatPercentage || "—"}%
+                        </td>
+                        <td className="px-4 py-4">{record.bmr || "—"}</td>
+                        <td className="px-4 py-4">
+                          {record.visceralFatLevel || "—"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        className="px-4 py-6 text-center text-slate-500"
+                      >
+                        {selectedMemberId
+                          ? "No scans have been recorded for this member yet."
+                          : "Select a member to load InBody history."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3 text-sm text-slate-400">
-            <span>
-              Page {currentPage} of{" "}
-              {Math.max(1, Math.ceil(records.length / pageSize))}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage((value) => Math.max(1, value - 1))
-                }
-                disabled={currentPage === 1}
-                className="rounded-3xl border border-slate-700 bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage((value) =>
-                    Math.min(
-                      Math.max(1, Math.ceil(records.length / pageSize)),
-                      value + 1,
-                    ),
-                  )
-                }
-                disabled={currentPage >= Math.ceil(records.length / pageSize)}
-                className="rounded-3xl border border-slate-700 bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-slate-400">
+              <span>
+                Page {currentPage} of{" "}
+                {Math.max(1, Math.ceil(records.length / pageSize))}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((value) => Math.max(1, value - 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="rounded-3xl border border-slate-700 bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((value) =>
+                      Math.min(
+                        Math.max(1, Math.ceil(records.length / pageSize)),
+                        value + 1,
+                      ),
+                    )
+                  }
+                  disabled={currentPage >= Math.ceil(records.length / pageSize)}
+                  className="rounded-3xl border border-slate-700 bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-
+        </section>
+      )}
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6">
           <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-4xl border border-slate-700 bg-slate-950 p-6 shadow-2xl shadow-slate-950/70">

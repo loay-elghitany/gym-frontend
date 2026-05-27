@@ -8,6 +8,7 @@ import Loading from "../../components/Loading";
 export default function GymOwnerDashboard() {
   const { tenant } = useAuth();
   const [metrics, setMetrics] = useState(null);
+  const [expiringMembers, setExpiringMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -54,7 +55,24 @@ export default function GymOwnerDashboard() {
       }
     };
 
+    const fetchExpiringMembers = async () => {
+      try {
+        const res = await api.get("/member/expiring?days=7", {
+          headers: {
+            "x-tenant-slug": currentTenantSlug,
+          },
+        });
+        if (!isMounted) {
+          return;
+        }
+        setExpiringMembers(res?.data?.data || []);
+      } catch (err) {
+        console.error("Failed to fetch expiring members:", err);
+      }
+    };
+
     fetchMetrics();
+    fetchExpiringMembers();
 
     return () => {
       isMounted = false;
@@ -153,26 +171,56 @@ export default function GymOwnerDashboard() {
 
       <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <article className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-semibold text-slate-950">
-            Expiring Memberships
-          </h2>
-          <div className="mt-6 space-y-4 text-sm text-slate-600">
-            <div className="rounded-3xl bg-slate-50 p-5">
-              <p className="font-semibold text-slate-950">Renewal cadence</p>
-              <p className="mt-2">
-                {metrics
-                  ? `${metrics.expiringSoon} members need renewal outreach this week.`
-                  : "Loading insights..."}
-              </p>
-            </div>
-            <div className="rounded-3xl bg-slate-50 p-5">
-              <p className="font-semibold text-slate-950">Member health</p>
-              <p className="mt-2">
-                {metrics
-                  ? `${metrics.activeMembers} active members remain engaged in the current cycle.`
-                  : "Loading insights..."}
-              </p>
-            </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-slate-950">
+              Expiring Memberships
+            </h2>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
+              {expiringMembers.length} members
+            </span>
+          </div>
+          <div className="mt-6 space-y-3">
+            {expiringMembers.length > 0 ? (
+              expiringMembers.slice(0, 5).map((member) => {
+                const rawExpiry =
+                  member?.subscription?.expiryDate ||
+                  member?.subscription?.expiresAt;
+                const expiryDate = rawExpiry ? new Date(rawExpiry) : null;
+                const daysLeft =
+                  expiryDate && !isNaN(expiryDate)
+                    ? Math.ceil(
+                        (expiryDate - new Date()) / (1000 * 60 * 60 * 24),
+                      )
+                    : null;
+                return (
+                  <div
+                    key={member._id}
+                    className="flex items-center justify-between rounded-3xl bg-slate-50 p-4"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {member.name}
+                      </p>
+                      <p className="text-sm text-slate-600">{member.phone}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {daysLeft !== null
+                          ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} left`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {expiryDate ? expiryDate.toLocaleDateString() : "—"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="rounded-3xl bg-slate-50 p-5 text-center text-sm text-slate-600">
+                No members expiring in the next 7 days
+              </div>
+            )}
           </div>
         </article>
         <AIFinancialInsights />
