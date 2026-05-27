@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
-import AIFinancialInsights from "../../components/AIFinancialInsights";
 import ChurnRadarPanel from "../../components/ChurnRadarPanel";
 
 export default function ReportsPage() {
@@ -49,11 +48,6 @@ export default function ReportsPage() {
 
   return (
     <main className="space-y-6">
-      <section className="grid gap-6 lg:grid-cols-2">
-        <AIFinancialInsights expectedRevenue={dashboard.expected30DayRevenue} />
-        <ChurnRadarPanel />
-      </section>
-
       <section className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
