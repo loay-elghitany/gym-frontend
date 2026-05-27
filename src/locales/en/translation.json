@@ -45,6 +45,10 @@
     "consistencyBadge": "Consistency Badge",
     "badgeDescription": "Checked in five times this week"
   },
+  "newTrainees": {
+    "title": "New Trainees",
+    "detail": "Registered this month"
+  },
   "button": {
     "signOut": "Sign out",
     "signIn": "Sign in",

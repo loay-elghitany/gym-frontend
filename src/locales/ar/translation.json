@@ -45,6 +45,10 @@
     "consistencyBadge": "شارة الالتزام",
     "badgeDescription": "تسجيل الدخول خمس مرات هذا الأسبوع"
   },
+  "newTrainees": {
+    "title": "متدربين جدد",
+    "detail": "مسجلون هذا الشهر"
+  },
   "button": {
     "signOut": "تسجيل الخروج",
     "signIn": "تسجيل الدخول",

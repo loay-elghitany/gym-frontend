@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import { useAuth } from "../../context/authContextValue";
+import { useTranslation } from "react-i18next";
 import ChurnRadarPanel from "../../components/ChurnRadarPanel";
 import AIFinancialInsights from "../../components/AIFinancialInsights";
 import Loading from "../../components/Loading";
@@ -84,12 +85,15 @@ export default function GymOwnerDashboard() {
     [tenant],
   );
 
+  const { t } = useTranslation();
+
   const displayMetrics = metrics
     ? [
         {
-          title: "Net Profit",
-          value: `$${metrics.netProfit.toLocaleString()}`,
-          detail: `Based on ${metrics.activeSubscriptions} active subscriptions`,
+          key: "newTrainees",
+          title: t("newTrainees.title"),
+          value: `${metrics.newTraineesThisMonth.toLocaleString()}`,
+          detail: t("newTrainees.detail"),
         },
         {
           title: "Monthly Revenue",
@@ -156,9 +160,28 @@ export default function GymOwnerDashboard() {
                 key={metric.title}
                 className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm"
               >
-                <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
-                  {metric.title}
-                </p>
+                <div className="flex items-start justify-between">
+                  <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
+                    {metric.title}
+                  </p>
+                  {metric.key === "newTrainees" ? (
+                    <div className="ml-4 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M15.75 5.25a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 18a6 6 0 1111.955.785A6.5 6.5 0 0014 17.5H4.5zM20.25 8.25a.75.75 0 01.75.75v1.5h1.5a.75.75 0 010 1.5h-1.5v1.5a.75.75 0 01-1.5 0v-1.5h-1.5a.75.75 0 010-1.5h1.5v-1.5c0-.414.336-.75.75-.75z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                  ) : null}
+                </div>
                 <p className="mt-5 text-3xl font-semibold text-slate-950">
                   {metric.value}
                 </p>
