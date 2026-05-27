@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import api from "../../api/axios";
 import ExerciseAutocomplete from "../../components/ExerciseAutocomplete";
 import FoodAutocomplete from "../../components/FoodAutocomplete";
 import useBodyScrollLock from "../../hooks/useBodyScrollLock";
+
+const emptyExercise = {
+  name: "",
+  sets: "",
+  reps: "",
+  notes: "",
+  gifUrl: "",
+};
 
 const emptyMeal = {
   mealName: "",
@@ -41,6 +50,7 @@ const getCalculatedMacros = (meal) => {
 };
 
 export default function TrainerPlans() {
+  const { t } = useTranslation();
   const [members, setMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState("");
   const [title, setTitle] = useState("");
@@ -49,9 +59,10 @@ export default function TrainerPlans() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  const [exercises, setExercises] = useState([
-    { name: "", sets: "", reps: "", notes: "", gifUrl: "" },
+  const [planDays, setPlanDays] = useState([
+    { dayName: "Day 1", exercises: [{ ...emptyExercise }] },
   ]);
+  const [expandedDay, setExpandedDay] = useState(0);
 
   useBodyScrollLock(templateModalOpen);
   const [meals, setMeals] = useState([emptyMeal]);
@@ -135,23 +146,120 @@ export default function TrainerPlans() {
     [assigned, visibleMemberIds],
   );
 
-  const handleExerciseChange = (index, field, value) => {
-    setExercises((current) =>
-      current.map((exercise, idx) =>
-        idx === index ? { ...exercise, [field]: value } : exercise,
+  const updateDayName = (dayIndex, value) => {
+    setPlanDays((current) =>
+      current.map((day, idx) =>
+        idx === dayIndex ? { ...day, dayName: value } : day,
       ),
     );
   };
 
-  const addExercise = () => {
-    setExercises((current) => [
-      ...current,
-      { name: "", sets: "", reps: "", notes: "", gifUrl: "" },
-    ]);
+  const updateExerciseInDay = (dayIndex, exerciseIndex, field, value) => {
+    setPlanDays((current) =>
+      current.map((day, idx) => {
+        if (idx !== dayIndex) {
+          return day;
+        }
+
+        return {
+          ...day,
+          exercises: day.exercises.map((exercise, exIdx) =>
+            exIdx === exerciseIndex
+              ? { ...exercise, [field]: value }
+              : exercise,
+          ),
+        };
+      }),
+    );
   };
 
-  const removeExercise = (index) => {
-    setExercises((current) => current.filter((_, idx) => idx !== index));
+  const addExerciseToDay = (dayIndex) => {
+    setPlanDays((current) =>
+      current.map((day, idx) =>
+        idx === dayIndex
+          ? { ...day, exercises: [...day.exercises, { ...emptyExercise }] }
+          : day,
+      ),
+    );
+  };
+
+  const removeExerciseFromDay = (dayIndex, exerciseIndex) => {
+    setPlanDays((current) =>
+      current.map((day, idx) => {
+        if (idx !== dayIndex) {
+          return day;
+        }
+
+        return {
+          ...day,
+          exercises: day.exercises.filter(
+            (_, exIdx) => exIdx !== exerciseIndex,
+          ),
+        };
+      }),
+    );
+  };
+
+  const addTrainingDay = () => {
+    setPlanDays((current) => {
+      const next = [
+        ...current,
+        {
+          dayName: `Day ${current.length + 1}`,
+          exercises: [{ ...emptyExercise }],
+        },
+      ];
+      setExpandedDay(next.length - 1);
+      return next;
+    });
+  };
+
+  const removeTrainingDay = (dayIndex) => {
+    setPlanDays((current) =>
+      current
+        .filter((_, idx) => idx !== dayIndex)
+        .map((day, idx) => ({
+          ...day,
+          dayName: day.dayName || `Day ${idx + 1}`,
+        })),
+    );
+    setExpandedDay((current) => Math.max(0, current - 1));
+  };
+
+  const normalizeTemplateExercise = (exercise) => ({
+    name: exercise.name || "",
+    sets:
+      exercise.sets !== undefined && exercise.sets !== null
+        ? String(exercise.sets)
+        : "",
+    reps: exercise.reps || "",
+    notes: exercise.notes || "",
+    gifUrl: exercise.gifUrl || "",
+  });
+
+  const buildDaysFromTemplate = (template) => {
+    if (Array.isArray(template.days) && template.days.length) {
+      return template.days.map((day, idx) => ({
+        dayName: day.dayName || `Day ${idx + 1}`,
+        exercises:
+          Array.isArray(day.exercises) && day.exercises.length
+            ? day.exercises.map(normalizeTemplateExercise)
+            : [{ ...emptyExercise }],
+      }));
+    }
+
+    const flatExercises = Array.isArray(template.exercises)
+      ? template.exercises.map(normalizeTemplateExercise)
+      : [];
+
+    return [
+      {
+        dayName: "Day 1",
+        exercises: flatExercises.length
+          ? flatExercises
+          : [{ ...emptyExercise }],
+      },
+    ];
   };
 
   const updateMeal = (index, field, value) => {
@@ -218,17 +326,8 @@ export default function TrainerPlans() {
 
     setSelectedTemplateId(templateId);
     setTitle(template.templateName || "");
-    setExercises(
-      Array.isArray(template.exercises) && template.exercises.length
-        ? template.exercises.map((exercise) => ({
-            name: exercise.name || "",
-            sets: exercise.sets !== undefined ? String(exercise.sets) : "",
-            reps: exercise.reps || "",
-            notes: exercise.notes || "",
-            gifUrl: exercise.gifUrl || "",
-          }))
-        : [{ name: "", sets: "", reps: "", notes: "", gifUrl: "" }],
-    );
+    setPlanDays(buildDaysFromTemplate(template));
+    setExpandedDay(0);
     setMeals(
       Array.isArray(template.meals) && template.meals.length
         ? template.meals.map((meal) => ({
@@ -256,22 +355,38 @@ export default function TrainerPlans() {
 
   const saveTemplate = async () => {
     if (!templateName.trim()) {
-      setMessage("Template name is required.");
+      setMessage(t("plans.templateNameRequired"));
       setMessageTone("error");
       return;
     }
 
+    const cleanedDays = planDays
+      .map((day, dayIndex) => ({
+        dayName: day.dayName.trim() || `Day ${dayIndex + 1}`,
+        exercises: day.exercises
+          .filter((exercise) => exercise.name.trim())
+          .map((exercise) => ({
+            name: exercise.name.trim(),
+            sets: exercise.sets ? Number(exercise.sets) : 0,
+            reps: exercise.reps.trim(),
+            notes: exercise.notes.trim(),
+            gifUrl: exercise.gifUrl?.trim() || "",
+          })),
+      }))
+      .filter((day) => day.exercises.length);
+
     const payload = {
       templateName: templateName.trim(),
-      exercises: exercises
-        .filter((exercise) => exercise.name.trim())
-        .map((exercise) => ({
-          name: exercise.name.trim(),
-          sets: exercise.sets ? Number(exercise.sets) : 0,
-          reps: exercise.reps.trim(),
-          notes: exercise.notes.trim(),
-          gifUrl: exercise.gifUrl?.trim() || "",
-        })),
+      days: cleanedDays.length
+        ? cleanedDays
+        : [
+            {
+              dayName: "Day 1",
+              exercises: [
+                { name: "", sets: 0, reps: "", notes: "", gifUrl: "" },
+              ],
+            },
+          ],
       meals: meals
         .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
@@ -321,15 +436,24 @@ export default function TrainerPlans() {
     setSaving(true);
     setMessage(null);
     try {
-      const filteredExercises = exercises
-        .map((exercise) => ({
-          name: exercise.name.trim(),
-          sets: exercise.sets ? Number(exercise.sets) : undefined,
-          reps: exercise.reps.trim() || undefined,
-          notes: exercise.notes.trim() || undefined,
-          gifUrl: exercise.gifUrl?.trim() || undefined,
+      const cleanedDays = planDays
+        .map((day, dayIndex) => ({
+          dayName: day.dayName.trim() || `Day ${dayIndex + 1}`,
+          exercises: day.exercises
+            .map((exercise) => ({
+              name: exercise.name.trim(),
+              sets: exercise.sets ? Number(exercise.sets) : undefined,
+              reps: exercise.reps.trim() || undefined,
+              notes: exercise.notes.trim() || undefined,
+              gifUrl: exercise.gifUrl?.trim() || undefined,
+            }))
+            .filter(
+              (item) => item.name || item.sets || item.reps || item.notes,
+            ),
         }))
-        .filter((item) => item.name || item.sets || item.reps || item.notes);
+        .filter((day) => day.exercises.length);
+
+      const flattenedExercises = cleanedDays.flatMap((day) => day.exercises);
 
       const dietNotes = meals
         .filter((meal) => meal.mealName.trim())
@@ -341,22 +465,23 @@ export default function TrainerPlans() {
       const payload = {
         title,
         description,
-        exercises: filteredExercises,
+        days: cleanedDays,
+        exercises: flattenedExercises,
         dietNotes,
         assignedTo: assigned,
       };
 
       const res = await api.post("/plans", payload);
-      setMessage(res?.data?.message || "Plan created");
+      setMessage(res?.data?.message || t("plans.planCreated"));
       setTitle("");
       setDescription("");
-      setExercises([{ name: "", sets: "", reps: "", notes: "", gifUrl: "" }]);
+      setPlanDays([{ dayName: "Day 1", exercises: [{ ...emptyExercise }] }]);
       setMeals([emptyMeal]);
       setAssigned([]);
       setMemberSearch("");
     } catch (err) {
       setMessage(
-        err?.response?.data?.message || err?.message || "Create failed",
+        err?.response?.data?.message || err?.message || t("plans.createFailed"),
       );
     } finally {
       setSaving(false);
@@ -404,87 +529,175 @@ export default function TrainerPlans() {
         </div>
 
         <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <label className="text-sm font-semibold text-slate-900">
-                Workout exercises
+                {t("plans.workoutExercises")}
               </label>
               <p className="text-xs text-slate-500">
-                Add exercises with smart search, sets, reps, and optional notes.
+                {t("plans.workoutExercisesHint")}
               </p>
             </div>
             <button
               type="button"
-              onClick={addExercise}
-              className="rounded-3xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+              onClick={addTrainingDay}
+              className="rounded-full border border-slate-200 bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
-              Add Exercise
+              {t("plans.addTrainingDay")}
             </button>
           </div>
-          <div className="space-y-3">
-            {exercises.map((exercise, index) => (
-              <div
-                key={index}
-                className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm xl:flex-row xl:items-start"
-              >
-                <div className="flex-1 min-w-0">
-                  <ExerciseAutocomplete
-                    value={exercise.name}
-                    onValueChange={(nextValue) =>
-                      handleExerciseChange(index, "name", nextValue)
-                    }
-                    onSelect={(selectedExercise) => {
-                      handleExerciseChange(
-                        index,
-                        "name",
-                        selectedExercise?.nameAr?.trim() ||
-                          selectedExercise?.nameEn?.trim() ||
-                          exercise.name,
-                      );
-                      handleExerciseChange(
-                        index,
-                        "gifUrl",
-                        selectedExercise?.gifUrl?.trim() || "",
-                      );
-                    }}
-                    placeholder="Search exercise or type custom"
-                  />
-                </div>
-                <input
-                  placeholder="Sets"
-                  value={exercise.sets}
-                  onChange={(e) =>
-                    handleExerciseChange(index, "sets", e.target.value)
-                  }
-                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
-                  type="number"
-                  min="0"
-                />
-                <input
-                  placeholder="Reps"
-                  value={exercise.reps}
-                  onChange={(e) =>
-                    handleExerciseChange(index, "reps", e.target.value)
-                  }
-                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
-                />
-                <input
-                  placeholder="Notes"
-                  value={exercise.notes}
-                  onChange={(e) =>
-                    handleExerciseChange(index, "notes", e.target.value)
-                  }
-                  className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none xl:flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeExercise(index)}
-                  className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 xl:w-auto"
+          <div className="space-y-4">
+            {planDays.map((day, dayIndex) => {
+              const isOpen = expandedDay === dayIndex;
+              return (
+                <div
+                  key={dayIndex}
+                  className="overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-sm"
                 >
-                  Remove
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedDay(dayIndex)}
+                    className="flex w-full items-center justify-between gap-3 bg-slate-950/5 px-5 py-4 text-left transition hover:bg-slate-950/10"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-950">
+                        {day.dayName ||
+                          `${t("plans.dayLabel", { number: dayIndex + 1 })}`}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {t("plans.daySubtitle", { number: dayIndex + 1 })}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+                      {isOpen ? t("plans.collapse") : t("plans.expand")}
+                    </span>
+                  </button>
+
+                  {isOpen ? (
+                    <div className="space-y-4 border-t border-slate-200 px-5 py-5">
+                      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <input
+                          value={day.dayName}
+                          onChange={(e) =>
+                            updateDayName(dayIndex, e.target.value)
+                          }
+                          className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                          placeholder={t("plans.dayNamePlaceholder")}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeTrainingDay(dayIndex)}
+                          disabled={planDays.length <= 1}
+                          className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {t("plans.removeDay")}
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {day.exercises.map((exercise, exerciseIndex) => (
+                          <div
+                            key={`${dayIndex}-${exerciseIndex}`}
+                            className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm xl:flex-row xl:items-start"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <ExerciseAutocomplete
+                                value={exercise.name}
+                                onValueChange={(nextValue) =>
+                                  updateExerciseInDay(
+                                    dayIndex,
+                                    exerciseIndex,
+                                    "name",
+                                    nextValue,
+                                  )
+                                }
+                                onSelect={(selectedExercise) => {
+                                  updateExerciseInDay(
+                                    dayIndex,
+                                    exerciseIndex,
+                                    "name",
+                                    selectedExercise?.nameAr?.trim() ||
+                                      selectedExercise?.nameEn?.trim() ||
+                                      exercise.name,
+                                  );
+                                  updateExerciseInDay(
+                                    dayIndex,
+                                    exerciseIndex,
+                                    "gifUrl",
+                                    selectedExercise?.gifUrl?.trim() || "",
+                                  );
+                                }}
+                                placeholder={t(
+                                  "plans.exerciseSearchPlaceholder",
+                                )}
+                              />
+                            </div>
+                            <input
+                              placeholder={t("plans.sets")}
+                              value={exercise.sets}
+                              onChange={(e) =>
+                                updateExerciseInDay(
+                                  dayIndex,
+                                  exerciseIndex,
+                                  "sets",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
+                              type="number"
+                              min="0"
+                            />
+                            <input
+                              placeholder={t("plans.reps")}
+                              value={exercise.reps}
+                              onChange={(e) =>
+                                updateExerciseInDay(
+                                  dayIndex,
+                                  exerciseIndex,
+                                  "reps",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
+                            />
+                            <input
+                              placeholder={t("plans.notes")}
+                              value={exercise.notes}
+                              onChange={(e) =>
+                                updateExerciseInDay(
+                                  dayIndex,
+                                  exerciseIndex,
+                                  "notes",
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none xl:flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeExerciseFromDay(dayIndex, exerciseIndex)
+                              }
+                              className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 xl:w-auto"
+                            >
+                              {t("plans.removeExercise")}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => addExerciseToDay(dayIndex)}
+                        className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                      >
+                        {t("plans.addExercise")}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </div>
 

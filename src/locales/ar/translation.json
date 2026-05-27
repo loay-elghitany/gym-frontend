@@ -41,9 +41,35 @@
     "myAchievements": "إنجازاتي",
     "badgeHighlights": "البطاقات التي حصلت عليها والمكافآت الثابتة",
     "noBadges": "لم تكسب أي شارات بعد. استمر في تسجيل الدخول لفتح الإنجازات.",
+    "gamification": "الألعاب التحفيزية",
+    "gamificationSubtitle": "سلاسل النشاط والبطاقات التحفيزية",
+    "liveRewardTracking": "متابعة المكافآت المباشرة",
+    "activeStreak": "سلسلة النشاط",
+    "currentRun": "السلسلة الحالية",
+    "daysInARow": "أيام متتالية",
+    "nextStreak": "السلسلة التالية",
+    "progressToNextMilestone": "التقدم إلى الهدف التالي",
+    "achievements": "الإنجازات",
+    "rankDescription": "الفئة النشطة في نظام النقاط.",
     "unableToLoad": "تعذر تحميل حالة الصالة",
     "consistencyBadge": "شارة الالتزام",
-    "badgeDescription": "تسجيل الدخول خمس مرات هذا الأسبوع"
+    "badgeDescription": "تسجيل الدخول خمس مرات هذا الأسبوع",
+    "remainingSessions": "الجلسات المتبقية",
+    "expiresAt": "ينتهي في",
+    "currentRank": "الرتبة الحالية"
+    "notAvailable": "غير متاح"
+  },
+  "reports": {
+    "activeMembers": "أعضاء نشطون",
+    "newTrainees": "متدربين جدد",
+    "expiringSoon": "ستنتهي قريبًا",
+    "monthlyRevenue": "إيرادات الشهر",
+    "growth": "النمو (آخر 6 أشهر)",
+    "recentActivity": "النشاط الأخير",
+    "registered": "مسجل",
+    "status": "الحالة",
+    "noData": "لا توجد بيانات حتى الآن",
+    "loading": "جاري تحميل التقارير..."
   },
   "newTrainees": {
     "title": "متدربين جدد",

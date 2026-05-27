@@ -42,8 +42,12 @@ export default function MemberDashboard() {
 
   const remainingSessions = user?.subscription?.remainingSessions ?? 0;
   const expiresAtLabel = user?.subscription?.expiresAt
-    ? new Date(user.subscription.expiresAt).toLocaleDateString()
-    : "N/A";
+    ? new Date(user.subscription.expiresAt).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : t("dashboard.notAvailable");
   const activeOccupancy = attendance?.activeOccupancy ?? "-";
 
   const userRank = useMemo(() => {
@@ -119,29 +123,32 @@ export default function MemberDashboard() {
   return (
     <main className="space-y-10">
       {/* Expiry Banner */}
-      {daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry > 0 && (
-        <div className="sticky top-0 z-50 rounded-4xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 shadow-lg">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">⚠️</span>
-              <div>
-                <p className="font-semibold text-orange-900">
-                  Your subscription expires in {daysUntilExpiry} day{daysUntilExpiry !== 1 ? "s" : ""}
-                </p>
-                <p className="text-sm text-orange-700">
-                  Please renew at the reception to avoid interruption.
-                </p>
+      {daysUntilExpiry !== null &&
+        daysUntilExpiry <= 3 &&
+        daysUntilExpiry > 0 && (
+          <div className="sticky top-0 z-50 rounded-4xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 shadow-lg">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <p className="font-semibold text-orange-900">
+                    Your subscription expires in {daysUntilExpiry} day
+                    {daysUntilExpiry !== 1 ? "s" : ""}
+                  </p>
+                  <p className="text-sm text-orange-700">
+                    Please renew at the reception to avoid interruption.
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={() => (window.location.href = "/profile")}
+                className="rounded-full bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
+              >
+                View Details
+              </button>
             </div>
-            <button
-              onClick={() => window.location.href = "/profile"}
-              className="rounded-full bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
-            >
-              View Details
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
       <section className="rounded-4xl border border-slate-200 bg-white p-8 shadow-lg shadow-slate-900/5">
         <div className="max-w-3xl space-y-4">
@@ -178,34 +185,40 @@ export default function MemberDashboard() {
           <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-600">
             {t("dashboard.quickStats")}
           </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Remaining sessions</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-950">
+          <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
+                {t("dashboard.remainingSessions")}
+              </p>
+              <p className="mt-4 text-3xl font-bold text-slate-950">
                 {remainingSessions}
               </p>
             </div>
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Expires at</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-950">
+            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
+                {t("dashboard.expiresAt")}
+              </p>
+              <p className="mt-4 text-3xl font-bold text-slate-950">
                 {expiresAtLabel}
               </p>
             </div>
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">
+            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
                 {t("dashboard.pointsEarned")}
               </p>
-              <p className="mt-4 text-3xl font-semibold text-slate-950">
+              <p className="mt-4 text-3xl font-bold text-slate-950">
                 {user?.gamification?.points || 0}
               </p>
             </div>
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Current rank</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-950">
+            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
+                {t("dashboard.currentRank")}
+              </p>
+              <p className="mt-4 text-3xl font-bold text-slate-950">
                 {userRank}
               </p>
               <p className="mt-2 text-sm text-slate-600">
-                Your active gamification tier.
+                {t("dashboard.rankDescription")}
               </p>
             </div>
           </div>
@@ -226,26 +239,34 @@ export default function MemberDashboard() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {badges.length > 0 ? (
             badges.map((badge) => (
               <div
                 key={badge.name}
-                className="overflow-hidden rounded-4xl bg-linear-to-br from-sky-500 via-cyan-500 to-emerald-500 p-6 text-white shadow-xl shadow-sky-500/20"
+                className="flex min-h-[180px] flex-col justify-between rounded-4xl bg-gradient-to-br from-sky-500 via-cyan-500 to-emerald-500 p-6 shadow-xl shadow-sky-500/20"
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <span className="rounded-3xl bg-white/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em]">
-                    {badge.name}
-                  </span>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-white/15 text-xl">
-                    ⭐
+                <div>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <span className="rounded-3xl bg-white/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white">
+                      {badge.name}
+                    </span>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-white/15 text-xl text-white">
+                      ⭐
+                    </div>
                   </div>
+                  <p className="text-sm leading-6 text-white/95 whitespace-normal break-words">
+                    {badge.description}
+                  </p>
                 </div>
-                <p className="text-sm leading-6 text-white/90">
-                  {badge.description}
-                </p>
                 <p className="mt-6 text-xs uppercase tracking-[0.24em] text-white/70">
-                  {new Date(badge.awardedAt).toLocaleDateString()}
+                  {badge.awardedAt
+                    ? new Date(badge.awardedAt).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : t("dashboard.notAvailable")}
                 </p>
               </div>
             ))

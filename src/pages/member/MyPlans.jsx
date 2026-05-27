@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Dumbbell } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import api from "../../api/axios";
 
 const formatDisplayDate = (value) => {
@@ -141,15 +143,48 @@ const getMacroSummary = (meals) => {
 };
 
 export default function MyPlans() {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTabs, setSelectedTabs] = useState({});
   const [activeModes, setActiveModes] = useState({});
   const [completedExercises, setCompletedExercises] = useState({});
+  const [activeDayPerPlan, setActiveDayPerPlan] = useState({});
+  const [brokenImages, setBrokenImages] = useState({});
   const [savingPlanId, setSavingPlanId] = useState(null);
   const [statusMessages, setStatusMessages] = useState({});
   const [toast, setToast] = useState(null);
+
+  const getPlanDays = (plan) =>
+    Array.isArray(plan.days) && plan.days.length
+      ? plan.days
+      : [
+          {
+            dayName: "Day 1",
+            exercises: Array.isArray(plan.exercises) ? plan.exercises : [],
+          },
+        ];
+
+  const getActiveDay = (plan) => {
+    const days = getPlanDays(plan);
+    const activeIndex = activeDayPerPlan[plan._id] ?? 0;
+    return days[activeIndex] || days[0];
+  };
+
+  const handleSelectDay = (planId, dayIndex) => {
+    setActiveDayPerPlan((current) => ({
+      ...current,
+      [planId]: dayIndex,
+    }));
+  };
+
+  const handleImageError = (key) => {
+    setBrokenImages((current) => ({
+      ...current,
+      [key]: true,
+    }));
+  };
 
   useEffect(() => {
     if (!toast) {
@@ -183,6 +218,15 @@ export default function MyPlans() {
           });
           return next;
         });
+        setActiveDayPerPlan((current) => {
+          const next = { ...current };
+          planData.forEach((plan) => {
+            if (next[plan._id] === undefined) {
+              next[plan._id] = 0;
+            }
+          });
+          return next;
+        });
       } catch (err) {
         setError(
           err?.response?.data?.message ||
@@ -201,8 +245,8 @@ export default function MyPlans() {
     if (!activeModes[planId]) {
       return;
     }
-
-    const key = `${planId}-${index}`;
+    const activeDayIndex = activeDayPerPlan[planId] ?? 0;
+    const key = `${planId}-${activeDayIndex}-${index}`;
     setCompletedExercises((current) => ({
       ...current,
       [key]: !current[key],
@@ -224,9 +268,10 @@ export default function MyPlans() {
   };
 
   const handleFinishWorkout = async (planId, exercises) => {
+    const activeDayIndex = activeDayPerPlan[planId] ?? 0;
     const totalExercises = Array.isArray(exercises) ? exercises.length : 0;
     const completedCount = exercises.reduce((count, exercise, index) => {
-      const key = `${planId}-${index}`;
+      const key = `${planId}-${activeDayIndex}-${index}`;
       return count + (completedExercises[key] ? 1 : 0);
     }, 0);
 
@@ -331,15 +376,23 @@ export default function MyPlans() {
       ) : null}
 
       {plans.map((plan) => {
-        const exercises = Array.isArray(plan.exercises) ? plan.exercises : [];
+        const planDays = getPlanDays(plan);
+        const activeDayIndex = activeDayPerPlan[plan._id] ?? 0;
+        const activeDay = getActiveDay(plan);
+        const activeExercises = Array.isArray(activeDay.exercises)
+          ? activeDay.exercises
+          : [];
         const planMeals = getPlanMeals(plan);
         const macroSummary = getMacroSummary(planMeals);
-        const completedCount = exercises.reduce((count, exercise, index) => {
-          const key = `${plan._id}-${index}`;
-          return count + (completedExercises[key] ? 1 : 0);
-        }, 0);
-        const progress = exercises.length
-          ? Math.round((completedCount / exercises.length) * 100)
+        const completedCount = activeExercises.reduce(
+          (count, exercise, index) => {
+            const key = `${plan._id}-${activeDayIndex}-${index}`;
+            return count + (completedExercises[key] ? 1 : 0);
+          },
+          0,
+        );
+        const progress = activeExercises.length
+          ? Math.round((completedCount / activeExercises.length) * 100)
           : 0;
         const isActive = Boolean(activeModes[plan._id]);
         const isSaving = savingPlanId === plan._id;
@@ -381,7 +434,7 @@ export default function MyPlans() {
                     {progress}%
                   </p>
                   <p className="mt-1 text-sm text-slate-200">
-                    {completedCount}/{exercises.length} exercises complete
+                    {completedCount}/{activeExercises.length} exercises complete
                   </p>
                 </div>
               </div>
@@ -438,27 +491,47 @@ export default function MyPlans() {
                         type="button"
                         onClick={() =>
                           isActive
-                            ? handleFinishWorkout(plan._id, exercises)
+                            ? handleFinishWorkout(plan._id, activeExercises)
                             : handleStartWorkout(plan._id)
                         }
-                        disabled={isSaving || !exercises.length}
+                        disabled={isSaving || !activeExercises.length}
                         className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
                           isSaving
                             ? "bg-slate-300 text-slate-700"
                             : isActive && progress === 100
                               ? "bg-emerald-500 text-white shadow-[0_18px_30px_rgba(16,185,129,0.28)]"
                               : "bg-slate-950 text-white shadow-[0_18px_30px_rgba(15,23,42,0.2)]"
-                        } ${!isSaving && !exercises.length ? "cursor-not-allowed opacity-60" : "hover:scale-[1.01]"}`}
+                        } ${!isSaving && !activeExercises.length ? "cursor-not-allowed opacity-60" : "hover:scale-[1.01]"}`}
                       >
                         {isSaving
                           ? "Saving..."
                           : isActive && progress === 100
                             ? "✅ Finish & Save Workout"
                             : isActive
-                              ? `In progress • ${completedCount}/${exercises.length} complete`
+                              ? `In progress • ${completedCount}/${activeExercises.length} complete`
                               : "🚀 Start Today's Workout"}
                       </button>
                     </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-3">
+                    {planDays.map((day, dayIndex) => {
+                      const isSelected = activeDayIndex === dayIndex;
+                      return (
+                        <button
+                          key={`${plan._id}-day-${dayIndex}`}
+                          type="button"
+                          onClick={() => handleSelectDay(plan._id, dayIndex)}
+                          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                            isSelected
+                              ? "bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {day.dayName || `${t("Day")} ${dayIndex + 1}`}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {status ? (
@@ -477,7 +550,7 @@ export default function MyPlans() {
                     </div>
                   ) : null}
 
-                  {exercises.length ? (
+                  {activeExercises.length ? (
                     <>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm text-slate-500">
@@ -498,8 +571,8 @@ export default function MyPlans() {
                       </div>
 
                       <div className="grid gap-3">
-                        {exercises.map((exercise, index) => {
-                          const key = `${plan._id}-${index}`;
+                        {activeExercises.map((exercise, index) => {
+                          const key = `${plan._id}-${activeDayIndex}-${index}`;
                           const isCompleted = Boolean(completedExercises[key]);
                           const note =
                             exercise.notes || exercise.instruction || "";
@@ -525,7 +598,7 @@ export default function MyPlans() {
                                     >
                                       {isCompleted ? "✓" : index + 1}
                                     </span>
-                                    {exercise.gifUrl ? (
+                                    {exercise.gifUrl && !brokenImages[key] ? (
                                       <button
                                         type="button"
                                         aria-label={`Open animation for ${exercise.name}`}
@@ -541,11 +614,16 @@ export default function MyPlans() {
                                         <img
                                           src={exercise.gifUrl}
                                           alt={exercise.name}
+                                          onError={() => handleImageError(key)}
                                           className="h-14 w-14 rounded-[14px] object-cover"
                                           loading="lazy"
                                         />
                                       </button>
-                                    ) : null}
+                                    ) : (
+                                      <div className="inline-flex h-14 w-14 items-center justify-center rounded-[18px] border border-slate-200 bg-slate-100 text-slate-500">
+                                        <Dumbbell className="h-7 w-7" />
+                                      </div>
+                                    )}
                                     <div>
                                       <p className="text-base font-semibold text-slate-950">
                                         {exercise.name}

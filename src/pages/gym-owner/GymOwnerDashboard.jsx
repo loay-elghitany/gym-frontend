@@ -16,6 +16,8 @@ export default function GymOwnerDashboard() {
   const currentTenantSlug =
     typeof tenant === "string" ? tenant : tenant?.slug || null;
 
+  const { t } = useTranslation();
+
   useEffect(() => {
     let isMounted = true;
 
@@ -31,7 +33,7 @@ export default function GymOwnerDashboard() {
     const fetchMetrics = async () => {
       setLoading(true);
       try {
-        const res = await api.get("/owner/metrics", {
+        const res = await api.get("/gym/reports", {
           headers: {
             "x-tenant-slug": currentTenantSlug,
           },
@@ -47,6 +49,7 @@ export default function GymOwnerDashboard() {
         setError(
           err?.response?.data?.message ||
             err?.message ||
+            t("reports.loading") ||
             "Unable to load metrics",
         );
       } finally {
@@ -85,30 +88,25 @@ export default function GymOwnerDashboard() {
     [tenant],
   );
 
-  const { t } = useTranslation();
-
   const displayMetrics = metrics
     ? [
         {
+          key: "activeMembers",
+          title: t("reports.activeMembers"),
+          value: `${metrics.activeMembers ?? 0}`,
+          detail: "",
+        },
+        {
           key: "newTrainees",
-          title: t("newTrainees.title"),
-          value: `${metrics.newTraineesThisMonth.toLocaleString()}`,
+          title: t("reports.newTrainees"),
+          value: `${metrics.newTraineesThisMonth ?? 0}`,
           detail: t("newTrainees.detail"),
         },
         {
-          title: "Monthly Revenue",
-          value: `$${metrics.monthlyRevenue.toLocaleString()}`,
-          detail: `${metrics.revenueComparison}% growth target`,
-        },
-        {
-          title: "Active Subscriptions",
-          value: `${metrics.activeSubscriptions}`,
-          detail: `${metrics.expiringSoon} ending soon`,
-        },
-        {
-          title: "Churn Risk",
-          value: `${metrics.churnRiskCount}`,
-          detail: `Inactive over 10 days`,
+          key: "expiringSoon",
+          title: t("reports.expiringSoon"),
+          value: `${metrics.expiringSoon ?? 0}`,
+          detail: "",
         },
       ]
     : [];
@@ -190,6 +188,116 @@ export default function GymOwnerDashboard() {
                 </p>
               </article>
             ))}
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-3">
+        <article className="col-span-2 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-slate-950">
+              {t("reports.growth")}
+            </h2>
+            <span className="text-sm text-slate-500">
+              {t("reports.loading")}
+            </span>
+          </div>
+
+          <div className="mt-6">
+            {loading ? (
+              <div className="h-48 animate-pulse rounded bg-slate-100"></div>
+            ) : metrics &&
+              metrics.growthChartData &&
+              metrics.growthChartData.length ? (
+              <div className="space-y-3">
+                <div className="flex items-end gap-3 h-48">
+                  {(() => {
+                    const max = Math.max(
+                      ...metrics.growthChartData.map((d) => d.signups),
+                      1,
+                    );
+                    return metrics.growthChartData.map((d) => {
+                      const height = Math.round((d.signups / max) * 100);
+                      return (
+                        <div key={d.month} className="flex-1 text-center">
+                          <div className="mx-auto h-40 flex items-end justify-center">
+                            <div
+                              className="w-9 rounded-t"
+                              style={{
+                                height: `${height}%`,
+                                background:
+                                  "linear-gradient(180deg,#06b6d4,#0ea5a0)",
+                              }}
+                            />
+                          </div>
+                          <div className="mt-2 text-sm text-slate-600">
+                            {d.month}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-3xl bg-slate-50 p-6 text-center text-sm text-slate-600">
+                {t("reports.noData")}
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="col-span-1 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-semibold text-slate-950">
+            {t("reports.recentActivity")}
+          </h2>
+          <div className="mt-4">
+            {loading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-10 animate-pulse rounded bg-slate-100"
+                  ></div>
+                ))}
+              </div>
+            ) : metrics &&
+              metrics.recentActivity &&
+              metrics.recentActivity.length ? (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-sm text-slate-500">
+                    <th className="pb-2">{t("reports.registered")}</th>
+                    <th className="pb-2">{t("reports.status")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {metrics.recentActivity.map((r, idx) => (
+                    <tr key={idx} className="py-2">
+                      <td className="py-3">
+                        <div className="font-semibold text-slate-900">
+                          {r.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {new Date(r.date).toLocaleString()}
+                        </div>
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${r.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
+                        >
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="rounded-3xl bg-slate-50 p-4 text-center text-sm text-slate-600">
+                {t("reports.noData")}
+              </div>
+            )}
+          </div>
+        </article>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">

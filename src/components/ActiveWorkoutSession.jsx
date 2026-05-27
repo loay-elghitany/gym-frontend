@@ -5,6 +5,7 @@ export default function ActiveWorkoutSession() {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [restSeconds, setRestSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
   const [weightLogs, setWeightLogs] = useState({});
@@ -45,9 +46,34 @@ export default function ActiveWorkoutSession() {
   }, [restSeconds, timerRunning]);
 
   const activeExercise = useMemo(() => {
-    if (!plan?.exercises?.length) return null;
-    return plan.exercises[activeIndex] || plan.exercises[0];
+    const days =
+      Array.isArray(plan?.days) && plan.days.length
+        ? plan.days
+        : [
+            {
+              dayName: "Day 1",
+              exercises: Array.isArray(plan?.exercises) ? plan.exercises : [],
+            },
+          ];
+
+    const activeDay = days[activeDayIndex] || days[0];
+    const ex = Array.isArray(activeDay.exercises) ? activeDay.exercises : [];
+    return ex[activeIndex] || ex[0] || null;
   }, [plan, activeIndex]);
+
+  const activeExercises = useMemo(() => {
+    const days =
+      Array.isArray(plan?.days) && plan.days.length
+        ? plan.days
+        : [
+            {
+              dayName: "Day 1",
+              exercises: Array.isArray(plan?.exercises) ? plan.exercises : [],
+            },
+          ];
+    const activeDay = days[activeDayIndex] || days[0];
+    return Array.isArray(activeDay.exercises) ? activeDay.exercises : [];
+  }, [plan, activeDayIndex]);
 
   const handleStartRest = () => {
     setRestSeconds(45);
@@ -57,14 +83,23 @@ export default function ActiveWorkoutSession() {
   const handleLogWeight = (value) => {
     setWeightLogs((current) => ({
       ...current,
-      [activeIndex]: value,
+      [`${activeDayIndex}-${activeIndex}`]: value,
     }));
   };
 
   const nextExercise = () => {
-    setActiveIndex((current) =>
-      Math.min(current + 1, plan.exercises.length - 1),
-    );
+    const days =
+      Array.isArray(plan?.days) && plan.days.length
+        ? plan.days
+        : [
+            {
+              dayName: "Day 1",
+              exercises: Array.isArray(plan?.exercises) ? plan.exercises : [],
+            },
+          ];
+    const activeDay = days[activeDayIndex] || days[0];
+    const ex = Array.isArray(activeDay.exercises) ? activeDay.exercises : [];
+    setActiveIndex((current) => Math.min(current + 1, ex.length - 1));
     setRestSeconds(0);
     setTimerRunning(false);
   };
@@ -102,6 +137,35 @@ export default function ActiveWorkoutSession() {
               "Follow your coach’s latest training sequence to stay on pace."}
           </p>
         </div>
+        <div className="flex gap-2">
+          {(Array.isArray(plan.days) && plan.days.length
+            ? plan.days
+            : [
+                {
+                  dayName: "Day 1",
+                  exercises: Array.isArray(plan.exercises)
+                    ? plan.exercises
+                    : [],
+                },
+              ]
+          ).map((d, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setActiveDayIndex(idx);
+                setActiveIndex(0);
+              }}
+              className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                idx === activeDayIndex
+                  ? "bg-slate-950 text-white"
+                  : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {d.dayName || `Day ${idx + 1}`}
+            </button>
+          ))}
+        </div>
         <div className="rounded-3xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
           {plan.dietNotes?.length
             ? `${plan.dietNotes.length} diet tips included`
@@ -137,12 +201,14 @@ export default function ActiveWorkoutSession() {
                 <input
                   type="number"
                   step="0.5"
-                  value={weightLogs[activeIndex] || ""}
+                  value={weightLogs[`${activeDayIndex}-${activeIndex}`] || ""}
                   onChange={(e) => handleLogWeight(e.target.value)}
                   placeholder="kg"
                   className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-sky-500"
                 />
-                <p className="mt-2 text-xs text-slate-500">Actual weight lifted (kg)</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Actual weight lifted (kg)
+                </p>
               </div>
             </div>
           </div>
@@ -151,7 +217,7 @@ export default function ActiveWorkoutSession() {
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-950">Rest timer</p>
               <span className="text-sm text-slate-500">
-                Set {activeIndex + 1} of {plan.exercises.length}
+                Set {activeIndex + 1} of {activeExercises.length}
               </span>
             </div>
             <div className="mt-5 rounded-3xl bg-white p-5 shadow-sm">
@@ -214,7 +280,7 @@ export default function ActiveWorkoutSession() {
             Plan details
           </p>
           <div className="mt-5 space-y-4">
-            {plan.exercises?.map((exercise, idx) => (
+            {activeExercises.map((exercise, idx) => (
               <div
                 key={exercise.name || idx}
                 className={`rounded-3xl p-4 ${idx === activeIndex ? "bg-slate-50" : "bg-slate-100"}`}
@@ -243,7 +309,7 @@ export default function ActiveWorkoutSession() {
           <button
             type="button"
             onClick={nextExercise}
-            disabled={activeIndex >= plan.exercises.length - 1}
+            disabled={activeIndex >= activeExercises.length - 1}
             className="mt-5 w-full rounded-3xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-slate-800"
           >
             Next Exercise
