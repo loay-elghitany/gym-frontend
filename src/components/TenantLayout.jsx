@@ -139,25 +139,13 @@ export default function TenantLayout() {
   const [telegramLoading, setTelegramLoading] = useState(true);
   const [telegramError, setTelegramError] = useState(null);
 
-  // Show loading spinner while auth context is initializing
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6 py-12">
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-lg shadow-slate-900/5">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-600" />
-          <span className="text-sm font-medium text-slate-700">
-            Loading your workspace...
-          </span>
-        </div>
-      </div>
-    );
-  }
-
+  // ✅ نقلنا الـ useMemo لفوق خالص
   const navItems = useMemo(() => {
     if (userRole && roleNavItems[userRole]) return roleNavItems[userRole];
     return roleNavItems.member;
   }, [userRole]);
 
+  // ✅ نقلنا الـ useEffect لفوق خالص
   useEffect(() => {
     const loadBroadcasts = async () => {
       try {
@@ -211,6 +199,20 @@ export default function TenantLayout() {
     telegramBotUsername && user?._id
       ? `https://t.me/${telegramBotUsername}?start=${user._id}`
       : null;
+
+  // ✅ نزلنا شاشة التحميل لتحت عشان متكسرش الـ Hooks
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6 py-12">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-lg shadow-slate-900/5">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-600" />
+          <span className="text-sm font-medium text-slate-700">
+            Loading your workspace...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
