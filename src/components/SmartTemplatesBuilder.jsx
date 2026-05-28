@@ -4,6 +4,14 @@ import ExerciseAutocomplete from "./ExerciseAutocomplete";
 import FoodAutocomplete from "./FoodAutocomplete";
 import useBodyScrollLock from "../hooks/useBodyScrollLock";
 
+const emptyExercise = {
+  name: "",
+  sets: "",
+  reps: "",
+  notes: "",
+  gifUrl: "",
+};
+
 const emptyMeal = {
   mealName: "",
   quantity: "",
@@ -19,9 +27,10 @@ export default function SmartTemplatesBuilder() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [newExercises, setNewExercises] = useState([
-    { name: "", sets: "", reps: "", gifUrl: "" },
+  const [templateDays, setTemplateDays] = useState([
+    { dayName: "Day 1", exercises: [{ ...emptyExercise }] },
   ]);
+  const [expandedDay, setExpandedDay] = useState(0);
   const [newMeals, setNewMeals] = useState([emptyMeal]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -50,7 +59,8 @@ export default function SmartTemplatesBuilder() {
   const closeModal = () => {
     setModalOpen(false);
     setTemplateName("");
-    setNewExercises([{ name: "", sets: "", reps: "", gifUrl: "" }]);
+    setTemplateDays([{ dayName: "Day 1", exercises: [{ ...emptyExercise }] }]);
+    setExpandedDay(0);
     setNewMeals([emptyMeal]);
     setSaving(false);
     setMessage(null);
@@ -59,54 +69,88 @@ export default function SmartTemplatesBuilder() {
 
   useBodyScrollLock(modalOpen);
 
-  const updateExercise = (index, field, value) => {
-    setNewExercises((prev) =>
-      prev.map((exercise, idx) => {
-        if (idx !== index) {
-          return exercise;
-        }
-
-        const nextExercise = { ...exercise, [field]: value };
-
-        if (field === "name") {
-          nextExercise.gifUrl = "";
-        }
-
-        return nextExercise;
-      }),
+  // Day-based functions
+  const updateDayName = (dayIndex, value) => {
+    setTemplateDays((current) =>
+      current.map((day, idx) =>
+        idx === dayIndex ? { ...day, dayName: value } : day,
+      ),
     );
   };
 
-  const selectExercise = (index, selectedExercise) => {
-    setNewExercises((prev) =>
-      prev.map((exercise, idx) => {
-        if (idx !== index) {
-          return exercise;
+  const updateExerciseInDay = (dayIndex, exerciseIndex, field, value) => {
+    setTemplateDays((current) =>
+      current.map((day, idx) => {
+        if (idx !== dayIndex) {
+          return day;
         }
 
         return {
-          ...exercise,
-          name:
-            selectedExercise?.nameAr?.trim() ||
-            selectedExercise?.nameEn?.trim() ||
-            exercise.name,
-          gifUrl: selectedExercise?.gifUrl?.trim() || "",
+          ...day,
+          exercises: day.exercises.map((exercise, exIdx) =>
+            exIdx === exerciseIndex
+              ? { ...exercise, [field]: value }
+              : exercise,
+          ),
         };
       }),
     );
   };
 
-  const removeExercise = (index) => {
-    setNewExercises((prev) => prev.filter((_, idx) => idx !== index));
+  const addExerciseToDay = (dayIndex) => {
+    setTemplateDays((current) =>
+      current.map((day, idx) =>
+        idx === dayIndex
+          ? { ...day, exercises: [...day.exercises, { ...emptyExercise }] }
+          : day,
+      ),
+    );
   };
 
-  const addExercise = () => {
-    setNewExercises((prev) => [
-      ...prev,
-      { name: "", sets: "", reps: "", gifUrl: "" },
-    ]);
+  const removeExerciseFromDay = (dayIndex, exerciseIndex) => {
+    setTemplateDays((current) =>
+      current.map((day, idx) => {
+        if (idx !== dayIndex) {
+          return day;
+        }
+
+        return {
+          ...day,
+          exercises: day.exercises.filter(
+            (_, exIdx) => exIdx !== exerciseIndex,
+          ),
+        };
+      }),
+    );
   };
 
+  const addTrainingDay = () => {
+    setTemplateDays((current) => {
+      const next = [
+        ...current,
+        {
+          dayName: `Day ${current.length + 1}`,
+          exercises: [{ ...emptyExercise }],
+        },
+      ];
+      setExpandedDay(next.length - 1);
+      return next;
+    });
+  };
+
+  const removeTrainingDay = (dayIndex) => {
+    setTemplateDays((current) =>
+      current
+        .filter((_, idx) => idx !== dayIndex)
+        .map((day, idx) => ({
+          ...day,
+          dayName: day.dayName || `Day ${idx + 1}`,
+        })),
+    );
+    setExpandedDay((current) => Math.max(0, current - 1));
+  };
+
+  // Meal functions
   const updateMeal = (index, field, value) => {
     setNewMeals((prev) =>
       prev.map((meal, idx) => {
@@ -209,17 +253,40 @@ export default function SmartTemplatesBuilder() {
     setMessage(null);
     setMessageTone("neutral");
 
+    if (!templateName.trim()) {
+      setMessage("Template name is required");
+      setMessageTone("error");
+      setSaving(false);
+      return;
+    }
+
+    const cleanedDays = templateDays
+      .map((day, dayIndex) => ({
+        dayName: day.dayName.trim() || `Day ${dayIndex + 1}`,
+        exercises: day.exercises
+          .filter((exercise) => exercise.name.trim())
+          .map((exercise) => ({
+            name: exercise.name.trim(),
+            sets: exercise.sets ? Number(exercise.sets) : 0,
+            reps: exercise.reps.trim(),
+            notes: exercise.notes.trim(),
+            gifUrl: exercise.gifUrl?.trim() || "",
+          })),
+      }))
+      .filter((day) => day.exercises.length);
+
     const payload = {
       templateName: templateName.trim(),
-      exercises: newExercises
-        .filter((exercise) => exercise.name.trim())
-        .map((exercise) => ({
-          name: exercise.name.trim(),
-          sets: Number(exercise.sets) || 0,
-          reps: exercise.reps.trim(),
-          notes: exercise.notes?.trim() || "",
-          gifUrl: exercise.gifUrl?.trim() || "",
-        })),
+      days: cleanedDays.length
+        ? cleanedDays
+        : [
+            {
+              dayName: "Day 1",
+              exercises: [
+                { name: "", sets: 0, reps: "", notes: "", gifUrl: "" },
+              ],
+            },
+          ],
       meals: newMeals
         .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
@@ -418,63 +485,190 @@ export default function SmartTemplatesBuilder() {
               </div>
 
               <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-950">
-                    Exercises
-                  </p>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      Training Days
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Organize exercises by training day to create a structured
+                      template.
+                    </p>
+                  </div>
                   <button
-                    onClick={addExercise}
                     type="button"
-                    className="rounded-3xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                    onClick={addTrainingDay}
+                    className="rounded-full border border-slate-200 bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
                   >
-                    Add exercise
+                    Add training day
                   </button>
                 </div>
-                <div className="space-y-3">
-                  {newExercises.map((exercise, index) => (
-                    <div
-                      key={index}
-                      className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm sm:flex-row sm:items-start"
-                    >
-                      <div className="w-full flex-1">
-                        <ExerciseAutocomplete
-                          value={exercise.name}
-                          onValueChange={(nextValue) =>
-                            updateExercise(index, "name", nextValue)
-                          }
-                          onSelect={(selectedExercise) =>
-                            selectExercise(index, selectedExercise)
-                          }
-                          placeholder="Search exercise or type custom"
-                        />
-                      </div>
-                      <input
-                        value={exercise.sets}
-                        onChange={(event) =>
-                          updateExercise(index, "sets", event.target.value)
-                        }
-                        className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none sm:w-24"
-                        placeholder="Sets"
-                        required
-                      />
-                      <input
-                        value={exercise.reps}
-                        onChange={(event) =>
-                          updateExercise(index, "reps", event.target.value)
-                        }
-                        className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none sm:w-24"
-                        placeholder="Reps"
-                        required
-                      />
-                      <button
-                        onClick={() => removeExercise(index)}
-                        type="button"
-                        className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 sm:w-auto"
+                <div className="space-y-4">
+                  {templateDays.map((day, dayIndex) => {
+                    const isOpen = expandedDay === dayIndex;
+                    const exerciseCount = Array.isArray(day.exercises)
+                      ? day.exercises.filter((e) => e.name.trim()).length
+                      : 0;
+                    return (
+                      <div
+                        key={dayIndex}
+                        className={`overflow-hidden rounded-4xl border-2 transition ${
+                          isOpen
+                            ? "border-slate-950 bg-white shadow-lg"
+                            : "border-slate-200 bg-white shadow-sm hover:shadow-md"
+                        }`}
                       >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedDay(dayIndex)}
+                          className={`flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition ${
+                            isOpen
+                              ? "bg-slate-950/10"
+                              : "bg-linear-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150"
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-base font-semibold text-slate-950">
+                                📅 {day.dayName || `Day ${dayIndex + 1}`}
+                              </p>
+                              <span className="rounded-lg bg-cyan-100 px-2 py-1 text-xs font-semibold text-cyan-700">
+                                {exerciseCount} exercise
+                                {exerciseCount !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {isOpen
+                                ? "Click to collapse"
+                                : "Click to expand and edit"}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                              isOpen
+                                ? "bg-slate-950 text-white"
+                                : "bg-slate-200 text-slate-700"
+                            }`}
+                          >
+                            {isOpen ? "▼" : "▶"}{" "}
+                            {isOpen ? "Collapse" : "Expand"}
+                          </span>
+                        </button>
+
+                        {isOpen ? (
+                          <div className="space-y-4 border-t-2 border-slate-950 px-5 py-5 bg-slate-50">
+                            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                              <input
+                                value={day.dayName}
+                                onChange={(e) =>
+                                  updateDayName(dayIndex, e.target.value)
+                                }
+                                className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                                placeholder="Day name (e.g., Chest Day)"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeTrainingDay(dayIndex)}
+                                disabled={templateDays.length <= 1}
+                                className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Remove day
+                              </button>
+                            </div>
+
+                            <div className="space-y-3">
+                              {day.exercises.map((exercise, exerciseIndex) => (
+                                <div
+                                  key={`${dayIndex}-${exerciseIndex}`}
+                                  className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm xl:flex-row xl:items-start"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <ExerciseAutocomplete
+                                      value={exercise.name}
+                                      onValueChange={(nextValue) =>
+                                        updateExerciseInDay(
+                                          dayIndex,
+                                          exerciseIndex,
+                                          "name",
+                                          nextValue,
+                                        )
+                                      }
+                                      onSelect={(selectedExercise) => {
+                                        updateExerciseInDay(
+                                          dayIndex,
+                                          exerciseIndex,
+                                          "name",
+                                          selectedExercise?.nameAr?.trim() ||
+                                            selectedExercise?.nameEn?.trim() ||
+                                            exercise.name,
+                                        );
+                                        updateExerciseInDay(
+                                          dayIndex,
+                                          exerciseIndex,
+                                          "gifUrl",
+                                          selectedExercise?.gifUrl?.trim() ||
+                                            "",
+                                        );
+                                      }}
+                                      placeholder="Search exercise or type custom"
+                                    />
+                                  </div>
+                                  <input
+                                    placeholder="Sets"
+                                    value={exercise.sets}
+                                    onChange={(e) =>
+                                      updateExerciseInDay(
+                                        dayIndex,
+                                        exerciseIndex,
+                                        "sets",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
+                                    type="number"
+                                    min="0"
+                                  />
+                                  <input
+                                    placeholder="Reps"
+                                    value={exercise.reps}
+                                    onChange={(e) =>
+                                      updateExerciseInDay(
+                                        dayIndex,
+                                        exerciseIndex,
+                                        "reps",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none xl:w-24"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeExerciseFromDay(
+                                        dayIndex,
+                                        exerciseIndex,
+                                      )
+                                    }
+                                    className="w-full rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 xl:w-auto"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => addExerciseToDay(dayIndex)}
+                              className="w-full rounded-3xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 border border-slate-200 transition hover:bg-slate-50"
+                            >
+                              + Add exercise
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -16,11 +16,14 @@ export default function InBodyRecords() {
   const [message, setMessage] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState("inbody"); // "inbody" or "checkins"
+  const [activeTab, setActiveTab] = useState("inbody"); // "inbody", "checkins", or "progress"
   const [checkIns, setCheckIns] = useState([]);
   const [loadingCheckIns, setLoadingCheckIns] = useState(false);
   const [feedbacks, setFeedbacks] = useState({});
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [progressPhotos, setProgressPhotos] = useState([]);
+  const [memberInBodyRecords, setMemberInBodyRecords] = useState([]);
+  const [loadingProgress, setLoadingProgress] = useState(false);
 
   const [scanData, setScanData] = useState({
     weight: "",
@@ -115,6 +118,30 @@ export default function InBodyRecords() {
       }
     };
     loadCheckIns();
+  }, [selectedMemberId, activeTab]);
+
+  useEffect(() => {
+    const loadProgress = async () => {
+      if (!selectedMemberId || activeTab !== "progress") {
+        setProgressPhotos([]);
+        setMemberInBodyRecords([]);
+        return;
+      }
+      setLoadingProgress(true);
+      try {
+        const res = await api.get(`/member/progress/${selectedMemberId}`);
+        const data = res?.data?.data || {};
+        setProgressPhotos(Array.isArray(data.progressPhotos) ? data.progressPhotos : []);
+        setMemberInBodyRecords(Array.isArray(data.inBodyRecords) ? data.inBodyRecords : []);
+      } catch (err) {
+        console.error("Failed to load progress:", err);
+        setProgressPhotos([]);
+        setMemberInBodyRecords([]);
+      } finally {
+        setLoadingProgress(false);
+      }
+    };
+    loadProgress();
   }, [selectedMemberId, activeTab]);
 
   const selectedMember = useMemo(
@@ -345,6 +372,16 @@ export default function InBodyRecords() {
             }`}
           >
             Weekly Check-ins
+          </button>
+          <button
+            onClick={() => setActiveTab("progress")}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "progress"
+                ? "bg-sky-500 text-slate-950"
+                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            }`}
+          >
+            📸 Visual Progress
           </button>
         </div>
       )}
@@ -798,6 +835,125 @@ export default function InBodyRecords() {
           </div>
         </section>
       )}
+
+      {/* Visual Progress Tab - Photo Gallery and Member-Uploaded InBody Records */}
+      {activeTab === "progress" && selectedMemberId ? (
+        <section className="space-y-6 rounded-4xl border border-slate-700 bg-slate-950/90 p-6">
+          <div>
+            <h2 className="text-xl font-semibold text-white">Member Progress</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              View progress photos and InBody records uploaded by {selectedMember?.name || "the member"}.
+            </p>
+          </div>
+
+          {loadingProgress ? (
+            <div className="flex items-center justify-center rounded-3xl bg-slate-900 py-12">
+              <p className="text-sm text-slate-400">Loading progress data...</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Progress Photos Gallery */}
+              <div className="rounded-3xl border border-slate-700 bg-slate-900 p-4">
+                <h3 className="mb-4 font-semibold text-white">📸 Progress Photos</h3>
+                {progressPhotos && progressPhotos.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {progressPhotos
+                      .sort((a, b) => new Date(b.date) - new Date(a.date))
+                      .map((photo) => (
+                        <div
+                          key={photo._id}
+                          className="group relative overflow-hidden rounded-2xl bg-slate-800"
+                        >
+                          <img
+                            src={photo.photoUrl}
+                            alt={`${photo.viewType} view - ${new Date(photo.date).toLocaleDateString()}`}
+                            className="h-40 w-full object-cover transition group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 flex flex-col items-center justify-end bg-linear-to-t from-slate-950/80 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
+                            <p className="text-xs text-slate-200 capitalize">
+                              {photo.viewType}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {new Date(photo.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">No progress photos yet.</p>
+                )}
+              </div>
+
+              {/* InBody Records - Member Uploaded */}
+              <div className="rounded-3xl border border-slate-700 bg-slate-900 p-4">
+                <h3 className="mb-4 font-semibold text-white">📊 InBody Records (Member)</h3>
+                {memberInBodyRecords && memberInBodyRecords.length > 0 ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {memberInBodyRecords
+                      .filter((record) => record.uploadedBy === "member")
+                      .sort((a, b) => new Date(b.date) - new Date(a.date))
+                      .map((record) => (
+                        <div
+                          key={record._id}
+                          className="rounded-2xl border border-slate-700 bg-slate-800 p-3"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {new Date(record.date).toLocaleDateString()}
+                              </p>
+                              <div className="mt-2 space-y-1 text-xs text-slate-400">
+                                {record.weight && (
+                                  <p>
+                                    <span className="text-slate-300">Weight:</span>{" "}
+                                    {record.weight} kg
+                                  </p>
+                                )}
+                                {record.fatPercentage && (
+                                  <p>
+                                    <span className="text-slate-300">Fat %:</span>{" "}
+                                    {record.fatPercentage}%
+                                  </p>
+                                )}
+                                {record.muscleMass && (
+                                  <p>
+                                    <span className="text-slate-300">
+                                      Muscle Mass:
+                                    </span>{" "}
+                                    {record.muscleMass} kg
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <span className="inline-block rounded-full bg-sky-500/20 px-2 py-1 text-xs font-semibold text-sky-300">
+                              Member
+                            </span>
+                          </div>
+                          {record.fileUrl && (
+                            <a
+                              href={record.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 inline-block text-xs text-sky-400 hover:text-sky-300 underline"
+                            >
+                              View scan
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    No InBody records uploaded yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6">
           <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-4xl border border-slate-700 bg-slate-950 p-6 shadow-2xl shadow-slate-950/70">
