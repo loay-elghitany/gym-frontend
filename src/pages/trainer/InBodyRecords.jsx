@@ -131,8 +131,12 @@ export default function InBodyRecords() {
       try {
         const res = await api.get(`/member/progress/${selectedMemberId}`);
         const data = res?.data?.data || {};
-        setProgressPhotos(Array.isArray(data.progressPhotos) ? data.progressPhotos : []);
-        setMemberInBodyRecords(Array.isArray(data.inBodyRecords) ? data.inBodyRecords : []);
+        setProgressPhotos(
+          Array.isArray(data.progressPhotos) ? data.progressPhotos : [],
+        );
+        setMemberInBodyRecords(
+          Array.isArray(data.inBodyRecords) ? data.inBodyRecords : [],
+        );
       } catch (err) {
         console.error("Failed to load progress:", err);
         setProgressPhotos([]);
@@ -840,9 +844,12 @@ export default function InBodyRecords() {
       {activeTab === "progress" && selectedMemberId ? (
         <section className="space-y-6 rounded-4xl border border-slate-700 bg-slate-950/90 p-6">
           <div>
-            <h2 className="text-xl font-semibold text-white">Member Progress</h2>
+            <h2 className="text-xl font-semibold text-white">
+              Member Progress
+            </h2>
             <p className="mt-1 text-sm text-slate-400">
-              View progress photos and InBody records uploaded by {selectedMember?.name || "the member"}.
+              View progress photos and InBody records uploaded by{" "}
+              {selectedMember?.name || "the member"}.
             </p>
           </div>
 
@@ -854,7 +861,9 @@ export default function InBodyRecords() {
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Progress Photos Gallery */}
               <div className="rounded-3xl border border-slate-700 bg-slate-900 p-4">
-                <h3 className="mb-4 font-semibold text-white">📸 Progress Photos</h3>
+                <h3 className="mb-4 font-semibold text-white">
+                  📸 Progress Photos
+                </h3>
                 {progressPhotos && progressPhotos.length > 0 ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {progressPhotos
@@ -881,13 +890,17 @@ export default function InBodyRecords() {
                       ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">No progress photos yet.</p>
+                  <p className="text-sm text-slate-400">
+                    No progress photos yet.
+                  </p>
                 )}
               </div>
 
               {/* InBody Records - Member Uploaded */}
               <div className="rounded-3xl border border-slate-700 bg-slate-900 p-4">
-                <h3 className="mb-4 font-semibold text-white">📊 InBody Records (Member)</h3>
+                <h3 className="mb-4 font-semibold text-white">
+                  📊 InBody Records (Member)
+                </h3>
                 {memberInBodyRecords && memberInBodyRecords.length > 0 ? (
                   <div className="space-y-3 max-h-80 overflow-y-auto">
                     {memberInBodyRecords
@@ -906,13 +919,17 @@ export default function InBodyRecords() {
                               <div className="mt-2 space-y-1 text-xs text-slate-400">
                                 {record.weight && (
                                   <p>
-                                    <span className="text-slate-300">Weight:</span>{" "}
+                                    <span className="text-slate-300">
+                                      Weight:
+                                    </span>{" "}
                                     {record.weight} kg
                                   </p>
                                 )}
                                 {record.fatPercentage && (
                                   <p>
-                                    <span className="text-slate-300">Fat %:</span>{" "}
+                                    <span className="text-slate-300">
+                                      Fat %:
+                                    </span>{" "}
                                     {record.fatPercentage}%
                                   </p>
                                 )}
@@ -952,7 +969,7 @@ export default function InBodyRecords() {
             </div>
           )}
         </section>
-      )}
+      ) : null}
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-6">
