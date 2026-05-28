@@ -56,8 +56,11 @@
     "badgeDescription": "تسجيل الدخول خمس مرات هذا الأسبوع",
     "remainingSessions": "الجلسات المتبقية",
     "expiresAt": "ينتهي في",
-    "currentRank": "الرتبة الحالية"
-    "notAvailable": "غير متاح"
+    "currentRank": "الرتبة الحالية",
+    "leadsCtaCategory": "توليد العملاء المحتملين",
+    "leadsCtaTitle": "استحوذ على المزيد من العملاء عبر Leads CRM",
+    "leadsCtaDescription": "افتح لوحة Leads الجديدة لتحويل مشاركات صفحة الهبوط بسرعة وإدارة كل عميل محتمل من مساحة عمل واحدة مميزة.",
+    "leadsCtaAction": "افتح Leads CRM"
   },
   "reports": {
     "activeMembers": "أعضاء نشطون",

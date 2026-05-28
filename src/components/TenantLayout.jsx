@@ -10,6 +10,7 @@ const roleNavItems = {
     { label: "nav.members", path: "members", icon: "users" },
     { label: "nav.subscriptions", path: "subscriptions", icon: "credit-card" },
     { label: "nav.reports", path: "reports", icon: "chart" },
+    { label: "Leads CRM", path: "owner/leads", icon: "sparkles" },
     { label: "nav.landingPage", path: "owner/landing-page", icon: "sparkles" },
     { label: "nav.scanQr", path: "quick-scanner", icon: "qr" },
   ],
@@ -22,12 +23,13 @@ const roleNavItems = {
   trainer: [
     { label: "nav.dashboard", path: "trainer", icon: "home" },
     { label: "nav.classes", path: "classes", icon: "calendar" },
-    { label: "nav.inbodyRecords", path: "inbody", icon: "barbell" },
+    { label: "Weekly Check-ins", path: "inbody", icon: "barbell" },
     { label: "nav.scanQr", path: "quick-scanner", icon: "qr" },
   ],
   member: [
     { label: "nav.dashboard", path: "dashboard", icon: "home" },
     { label: "nav.myPlans", path: "my-plans", icon: "clipboard" },
+    { label: "Weekly Check-ins", path: "weekly-checkins", icon: "check" },
     { label: "nav.profile", path: "profile", icon: "user" },
     { label: "nav.leaderboard", path: "leaderboard", icon: "trophy" },
   ],

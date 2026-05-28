@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../../api/axios";
 import { useAuth } from "../../context/authContextValue";
 import { useTranslation } from "react-i18next";
@@ -88,6 +89,11 @@ export default function GymOwnerDashboard() {
     [tenant],
   );
 
+  const expiringCount = Math.max(
+    metrics?.expiringSoon ?? 0,
+    expiringMembers.length,
+  );
+
   const displayMetrics = metrics
     ? [
         {
@@ -121,6 +127,31 @@ export default function GymOwnerDashboard() {
 
   return (
     <main className="space-y-10">
+      {expiringCount > 0 ? (
+        <section className="rounded-4xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.32em] text-orange-600">
+                Expiry alert
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-orange-950">
+                {expiringCount} member{expiringCount !== 1 ? "s" : ""} may
+                expire soon
+              </h2>
+              <p className="mt-2 text-sm text-orange-700">
+                Keep your gym enrollment strong by reviewing soon-to-expire
+                plans.
+              </p>
+            </div>
+            <Link
+              to="/members"
+              className="inline-flex items-center justify-center rounded-full bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
+            >
+              View expiring members
+            </Link>
+          </div>
+        </section>
+      ) : null}
       <section className="rounded-4xl border border-slate-200 bg-white p-8 shadow-lg shadow-slate-900/5">
         <div className="max-w-3xl space-y-4">
           <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-600">
@@ -138,6 +169,30 @@ export default function GymOwnerDashboard() {
               {error}
             </div>
           ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-4xl border border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-6 shadow-xl shadow-cyan-500/10 text-white">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_auto]">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.32em] text-cyan-300">
+              {t("dashboard.leadsCtaCategory")}
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold text-white">
+              {t("dashboard.leadsCtaTitle")}
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-200">
+              {t("dashboard.leadsCtaDescription")}
+            </p>
+          </div>
+          <div className="flex items-center">
+            <Link
+              to="/owner/leads"
+              className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-slate-950/10 transition hover:bg-slate-100"
+            >
+              {t("dashboard.leadsCtaAction")}
+            </Link>
+          </div>
         </div>
       </section>
 

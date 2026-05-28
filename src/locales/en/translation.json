@@ -56,6 +56,10 @@
     "remainingSessions": "Remaining sessions",
     "expiresAt": "Expires at",
     "currentRank": "Current rank",
+    "leadsCtaCategory": "Lead generation",
+    "leadsCtaTitle": "Capture more prospects with Leads CRM",
+    "leadsCtaDescription": "Open the new Leads dashboard to convert landing page signups faster and manage every gym lead from one premium workspace.",
+    "leadsCtaAction": "Open Leads CRM",
     "rankDescription": "Your active gamification tier.",
     "notAvailable": "N/A"
   },

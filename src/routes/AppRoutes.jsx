@@ -23,6 +23,8 @@ import AuditLogs from "../pages/super-admin/AuditLogs";
 import TrainerDashboard from "../pages/trainer/TrainerDashboard";
 import TrainerClasses from "../pages/trainer/TrainerClasses";
 import InBodyRecords from "../pages/trainer/InBodyRecords";
+import WeeklyCheckIn from "../pages/member/WeeklyCheckIn";
+import LeadsCRM from "../pages/gym-owner/LeadsCRM";
 import QuickScanner from "../pages/owner/QuickScanner";
 import TenantLayout from "../components/TenantLayout";
 import TenantNotFoundPage from "../pages/error/TenantNotFoundPage";
@@ -226,6 +228,14 @@ export default function AppRoutes() {
             }
           />
           <Route
+            path="/owner/leads"
+            element={
+              <ProtectedRoute allowedRoles={["gym_owner"]}>
+                <LeadsCRM />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/reception"
             element={
               <ProtectedRoute allowedRoles={["receptionist"]}>
@@ -302,6 +312,14 @@ export default function AppRoutes() {
             element={
               <ProtectedRoute allowedRoles={["member"]}>
                 <MyPlans />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/weekly-checkins"
+            element={
+              <ProtectedRoute allowedRoles={["member"]}>
+                <WeeklyCheckIn />
               </ProtectedRoute>
             }
           />
