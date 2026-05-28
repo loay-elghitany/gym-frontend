@@ -549,32 +549,59 @@ export default function TrainerPlans() {
           <div className="space-y-4">
             {planDays.map((day, dayIndex) => {
               const isOpen = expandedDay === dayIndex;
+              const exerciseCount = Array.isArray(day.exercises)
+                ? day.exercises.filter((e) => e.name.trim()).length
+                : 0;
               return (
                 <div
                   key={dayIndex}
-                  className="overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-sm"
+                  className={`overflow-hidden rounded-4xl border-2 transition ${
+                    isOpen
+                      ? "border-slate-950 bg-white shadow-lg"
+                      : "border-slate-200 bg-white shadow-sm hover:shadow-md"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => setExpandedDay(dayIndex)}
-                    className="flex w-full items-center justify-between gap-3 bg-slate-950/5 px-5 py-4 text-left transition hover:bg-slate-950/10"
+                    className={`flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition ${
+                      isOpen
+                        ? "bg-slate-950/10"
+                        : "bg-linear-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150"
+                    }`}
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-950">
-                        {day.dayName ||
-                          `${t("plans.dayLabel", { number: dayIndex + 1 })}`}
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-semibold text-slate-950">
+                          📅{" "}
+                          {day.dayName ||
+                            `${t("plans.dayLabel", { number: dayIndex + 1 })}`}
+                        </p>
+                        <span className="rounded-lg bg-cyan-100 px-2 py-1 text-xs font-semibold text-cyan-700">
+                          {exerciseCount} exercise
+                          {exerciseCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
                       <p className="mt-1 text-xs text-slate-500">
-                        {t("plans.daySubtitle", { number: dayIndex + 1 })}
+                        {isOpen
+                          ? "Click to collapse"
+                          : "Click to expand and edit exercises"}
                       </p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+                    <span
+                      className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                        isOpen
+                          ? "bg-slate-950 text-white"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {isOpen ? "▼" : "▶"}{" "}
                       {isOpen ? t("plans.collapse") : t("plans.expand")}
                     </span>
                   </button>
 
                   {isOpen ? (
-                    <div className="space-y-4 border-t border-slate-200 px-5 py-5">
+                    <div className="space-y-4 border-t-2 border-slate-950 px-5 py-5 bg-slate-50">
                       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                         <input
                           value={day.dayName}

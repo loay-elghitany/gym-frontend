@@ -185,8 +185,8 @@ export default function MemberDashboard() {
           <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-600">
             {t("dashboard.quickStats")}
           </p>
-          <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+          <div className="mt-6 flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
                 {t("dashboard.remainingSessions")}
               </p>
@@ -194,15 +194,24 @@ export default function MemberDashboard() {
                 {remainingSessions}
               </p>
             </div>
-            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+            <div className="flex-1 min-w-[200px] rounded-3xl bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
                 {t("dashboard.expiresAt")}
               </p>
-              <p className="mt-4 text-3xl font-bold text-slate-950">
-                {expiresAtLabel}
+              <p className="mt-4 text-2xl font-bold text-slate-950 break-words">
+                {user?.subscription?.expiresAt
+                  ? new Date(user.subscription.expiresAt).toLocaleDateString(
+                      undefined,
+                      {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      },
+                    )
+                  : t("dashboard.notAvailable")}
               </p>
             </div>
-            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+            <div className="flex-1 min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
                 {t("dashboard.pointsEarned")}
               </p>
@@ -210,7 +219,7 @@ export default function MemberDashboard() {
                 {user?.gamification?.points || 0}
               </p>
             </div>
-            <div className="min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
+            <div className="flex-1 min-w-[160px] rounded-3xl bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
                 {t("dashboard.currentRank")}
               </p>
@@ -239,12 +248,12 @@ export default function MemberDashboard() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-4 grid-cols-1 md:grid-cols-2">
           {badges.length > 0 ? (
             badges.map((badge) => (
               <div
                 key={badge.name}
-                className="flex min-h-[180px] flex-col justify-between rounded-4xl bg-gradient-to-br from-sky-500 via-cyan-500 to-emerald-500 p-6 shadow-xl shadow-sky-500/20"
+                className="flex min-h-[200px] flex-col justify-between rounded-4xl bg-gradient-to-br from-sky-500 via-cyan-500 to-emerald-500 p-6 shadow-xl shadow-sky-500/20"
               >
                 <div>
                   <div className="mb-4 flex items-center justify-between gap-3">

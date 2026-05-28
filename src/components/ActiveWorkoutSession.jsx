@@ -166,11 +166,55 @@ export default function ActiveWorkoutSession() {
             </button>
           ))}
         </div>
-        <div className="rounded-3xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          {plan.dietNotes?.length
-            ? `${plan.dietNotes.length} diet tips included`
-            : "No nutrition notes yet"}
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
+          📅 Workout Day
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {(Array.isArray(plan.days) && plan.days.length
+            ? plan.days
+            : [
+                {
+                  dayName: "Day 1",
+                  exercises: Array.isArray(plan.exercises)
+                    ? plan.exercises
+                    : [],
+                },
+              ]
+          ).map((d, idx) => {
+            const dayExercises = Array.isArray(d.exercises) ? d.exercises : [];
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setActiveDayIndex(idx);
+                  setActiveIndex(0);
+                }}
+                className={`flex flex-col items-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  idx === activeDayIndex
+                    ? "bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <span>{d.dayName || `Day ${idx + 1}`}</span>
+                <span
+                  className={`mt-1 text-xs ${idx === activeDayIndex ? "text-slate-300" : "text-slate-500"}`}
+                >
+                  {dayExercises.length} exercises
+                </span>
+              </button>
+            );
+          })}
         </div>
+      </div>
+
+      <div className="rounded-3xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        {plan.dietNotes?.length
+          ? `${plan.dietNotes.length} diet tips included`
+          : "No nutrition notes yet"}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_0.85fr]">

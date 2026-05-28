@@ -131,13 +131,27 @@ function NavIcon({ type }) {
 }
 
 export default function TenantLayout() {
-  const { tenant, user, userRole, logout } = useAuth();
+  const { tenant, user, userRole, logout, loading: authLoading } = useAuth();
   const { t, i18n } = useTranslation();
 
   const [broadcasts, setBroadcasts] = useState([]);
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [telegramLoading, setTelegramLoading] = useState(true);
   const [telegramError, setTelegramError] = useState(null);
+
+  // Show loading spinner while auth context is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6 py-12">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-lg shadow-slate-900/5">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-600" />
+          <span className="text-sm font-medium text-slate-700">
+            Loading your workspace...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   const navItems = useMemo(() => {
     if (userRole && roleNavItems[userRole]) return roleNavItems[userRole];

@@ -514,24 +514,50 @@ export default function MyPlans() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-3">
-                    {planDays.map((day, dayIndex) => {
-                      const isSelected = activeDayIndex === dayIndex;
-                      return (
-                        <button
-                          key={`${plan._id}-day-${dayIndex}`}
-                          type="button"
-                          onClick={() => handleSelectDay(plan._id, dayIndex)}
-                          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                            isSelected
-                              ? "bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {day.dayName || `${t("Day")} ${dayIndex + 1}`}
-                        </button>
-                      );
-                    })}
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
+                      📅 Select Your Workout Day
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {planDays.map((day, dayIndex) => {
+                        const isSelected = activeDayIndex === dayIndex;
+                        const dayExercises = Array.isArray(day.exercises)
+                          ? day.exercises
+                          : [];
+                        const dayCompletedCount = dayExercises.reduce(
+                          (count, exercise, index) => {
+                            const key = `${plan._id}-${dayIndex}-${index}`;
+                            return count + (completedExercises[key] ? 1 : 0);
+                          },
+                          0,
+                        );
+                        const dayProgress = dayExercises.length
+                          ? Math.round(
+                              (dayCompletedCount / dayExercises.length) * 100,
+                            )
+                          : 0;
+
+                        return (
+                          <button
+                            key={`${plan._id}-day-${dayIndex}`}
+                            type="button"
+                            onClick={() => handleSelectDay(plan._id, dayIndex)}
+                            className={`flex flex-col items-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                              isSelected
+                                ? "bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+                                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            <span>{day.dayName || `Day ${dayIndex + 1}`}</span>
+                            <span
+                              className={`mt-1 text-xs ${isSelected ? "text-slate-300" : "text-slate-500"}`}
+                            >
+                              {dayExercises.length} exercises
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {status ? (

@@ -8,7 +8,7 @@ import AIFinancialInsights from "../../components/AIFinancialInsights";
 import Loading from "../../components/Loading";
 
 export default function GymOwnerDashboard() {
-  const { tenant } = useAuth();
+  const { tenant, loading: authLoading } = useAuth();
   const [metrics, setMetrics] = useState(null);
   const [expiringMembers, setExpiringMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,11 @@ export default function GymOwnerDashboard() {
 
   useEffect(() => {
     let isMounted = true;
+
+    // If auth is still loading, don't try to fetch yet
+    if (authLoading) {
+      return;
+    }
 
     if (!currentTenantSlug) {
       setLoading(false);
@@ -82,7 +87,7 @@ export default function GymOwnerDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [currentTenantSlug]);
+  }, [currentTenantSlug, authLoading]);
 
   const headerTitle = useMemo(
     () => `${tenant?.displayName || "Your Gym"} Owner Dashboard`,
@@ -117,10 +122,20 @@ export default function GymOwnerDashboard() {
       ]
     : [];
 
+  // While auth is loading, show loading spinner
+  if (authLoading) {
+    return (
+      <main className="space-y-6">
+        <Loading message="Loading your workspace..." />
+      </main>
+    );
+  }
+
+  // Only show error AFTER loading is complete and tenant is still null
   if (!currentTenantSlug) {
     return (
       <main className="space-y-6">
-        <Loading message="Waiting for your tenant workspace..." />
+        <Loading message="We couldn't find that gym workspace. Please refresh or contact support." />
       </main>
     );
   }
