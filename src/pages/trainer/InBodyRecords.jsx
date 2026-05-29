@@ -753,13 +753,14 @@ export default function InBodyRecords() {
                     <th className="px-4 py-3">Fat %</th>
                     <th className="px-4 py-3">BMR</th>
                     <th className="px-4 py-3">Visceral</th>
+                    <th className="px-4 py-3">Source</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                   {loadingRecords ? (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="px-4 py-6 text-center text-slate-500"
                       >
                         Loading records...
@@ -785,12 +786,25 @@ export default function InBodyRecords() {
                         <td className="px-4 py-4">
                           {record.visceralFatLevel || "—"}
                         </td>
+                        <td className="px-4 py-4">
+                          <span
+                            className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                              record.uploadedBy === "member"
+                                ? "bg-sky-500/20 text-sky-300"
+                                : "bg-slate-700/50 text-slate-300"
+                            }`}
+                          >
+                            {record.uploadedBy === "member"
+                              ? "Member Upload"
+                              : "Trainer"}
+                          </span>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="px-4 py-6 text-center text-slate-500"
                       >
                         {selectedMemberId
