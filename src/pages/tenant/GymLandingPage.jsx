@@ -36,6 +36,8 @@ export default function GymLandingPage() {
   const [submittingLead, setSubmittingLead] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState(false);
   const [leadError, setLeadError] = useState("");
+  const [trainers, setTrainers] = useState([]);
+  const [trainersLoading, setTrainersLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,6 +81,30 @@ export default function GymLandingPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadTrainers = async () => {
+      const tenantSlug = getTenantSlugFromHost(window.location.hostname);
+      if (!tenantSlug) return;
+      setTrainersLoading(true);
+      try {
+        const resp = await api.get(`/landing/${tenantSlug}/trainers`);
+        if (!isMounted) return;
+        setTrainers(Array.isArray(resp?.data?.data) ? resp.data.data : []);
+      } catch (err) {
+        // ignore trainer load errors for now
+      } finally {
+        if (isMounted) setTrainersLoading(false);
+      }
+    };
+
+    loadTrainers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const config = payload?.landingPageConfig || {};
   const gymName = payload?.gymName || "Gym";
   const plans = payload?.plans || [];
@@ -110,7 +136,7 @@ export default function GymLandingPage() {
       setLeadForm({ name: "", phone: "", email: "" });
     } catch (err) {
       setLeadError(
-        err?.response?.data?.message || "Failed to submit. Please try again."
+        err?.response?.data?.message || "Failed to submit. Please try again.",
       );
     } finally {
       setSubmittingLead(false);
@@ -302,6 +328,76 @@ export default function GymLandingPage() {
               )}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
+        <div className="max-w-3xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-600">
+            Our team
+          </p>
+          <h2 className="mt-4 text-3xl font-semibold text-slate-950">
+            Meet Our Trainers
+          </h2>
+        </div>
+
+        <div className="mt-8">
+          {trainersLoading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="animate-pulse rounded-xl bg-slate-100 h-64"
+                />
+              ))}
+            </div>
+          ) : trainers && trainers.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {trainers.map((trainer) => (
+                <article
+                  key={trainer._id}
+                  className="group relative overflow-hidden rounded-2xl bg-slate-950/5 shadow-lg shadow-slate-900/5 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/20"
+                >
+                  <div className="relative overflow-hidden">
+                    <img
+                      src={
+                        trainer.avatar ||
+                        "https://images.unsplash.com/photo-1544785349-c4a5301826fd?auto=format&fit=crop&w=800&q=60"
+                      }
+                      alt={trainer.name}
+                      className="w-full aspect-4/5 object-cover transition-all duration-500 ease-in-out group-hover:scale-105"
+                    />
+
+                    <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-slate-950/95 to-transparent" />
+
+                    <div className="absolute inset-x-0 bottom-0 px-4 pb-4 text-white">
+                      <p className="text-base font-semibold tracking-tight">
+                        {trainer.name}
+                      </p>
+                    </div>
+
+                    <div className="absolute inset-x-4 bottom-0 z-10 translate-y-full rounded-3xl border border-white/20 bg-white/20 p-5 backdrop-blur-md opacity-0 transition-all duration-500 ease-in-out delay-75 group-hover:translate-y-0 group-hover:opacity-100">
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-200">
+                        Specialty
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-slate-950">
+                        {trainer.specialty || "Strength & Conditioning"}
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-slate-700 line-clamp-4">
+                        {trainer.bio ||
+                          "A dedicated coach focused on helping members achieve their strongest, healthiest selves."}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[1rem] border border-dashed border-slate-200 bg-white px-6 py-10 text-sm text-slate-500">
+              No trainers listed yet. Add trainer profiles in the dashboard to
+              show here.
+            </div>
+          )}
         </div>
       </section>
 

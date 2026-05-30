@@ -18,6 +18,8 @@ export default function MembersPage() {
     password: "",
     role: "member",
     packageId: "",
+    specialty: "",
+    bio: "",
   });
 
   useBodyScrollLock(modalOpen);
@@ -70,6 +72,8 @@ export default function MembersPage() {
       password: "",
       role: "member",
       packageId: "",
+      specialty: "",
+      bio: "",
     });
     setModalOpen(true);
   };
@@ -94,6 +98,8 @@ export default function MembersPage() {
         email: form.email,
         password: form.password,
         role: form.role,
+        specialty: form.specialty || undefined,
+        bio: form.bio || undefined,
       };
 
       if (form.role === "member") {
@@ -362,6 +368,31 @@ export default function MembersPage() {
                   </select>
                 </label>
               </div>
+
+              {form.role === "trainer" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Specialty
+                    <input
+                      name="specialty"
+                      value={form.specialty}
+                      onChange={handleChange}
+                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                      placeholder="Strength & Conditioning"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm text-slate-700">
+                    Short bio
+                    <input
+                      name="bio"
+                      value={form.bio}
+                      onChange={handleChange}
+                      className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                      placeholder="Elite fitness coach with 10+ years experience"
+                    />
+                  </label>
+                </div>
+              )}
 
               {form.role === "member" ? (
                 <div className="grid gap-4 sm:grid-cols-2">

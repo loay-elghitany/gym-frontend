@@ -2,6 +2,84 @@
 import { useAuth } from "../../context/authContextValue";
 import api from "../../api/axios";
 
+function EditProfileActions({ user }) {
+  const { fetchCurrentUser } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    name: user?.name || "",
+    phone: user?.phone || "",
+    bio: user?.bio || "",
+    specialty: user?.specialty || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setForm({
+      name: user?.name || "",
+      phone: user?.phone || "",
+      bio: user?.bio || "",
+      specialty: user?.specialty || "",
+    });
+  }, [user]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((c) => ({ ...c, [name]: value }));
+  };
+
+  const save = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.put("/auth/update-profile", {
+        name: form.name,
+        phone: form.phone,
+        bio: form.bio,
+        specialty: form.specialty,
+      });
+      await fetchCurrentUser();
+      setEditing(false);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Unable to save profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="flex flex-col items-end gap-3">
+      {editing ? (
+        <div className="w-80 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <label className="block text-sm text-slate-700">Name
+            <input name="name" value={form.name} onChange={handleChange} className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm" />
+          </label>
+          <label className="block mt-3 text-sm text-slate-700">Phone
+            <input name="phone" value={form.phone} onChange={handleChange} className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm" />
+          </label>
+          <label className="block mt-3 text-sm text-slate-700">Specialty
+            <input name="specialty" value={form.specialty} onChange={handleChange} className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm" placeholder="Strength & Conditioning" />
+          </label>
+          <label className="block mt-3 text-sm text-slate-700">Short bio
+            <input name="bio" value={form.bio} onChange={handleChange} className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm" placeholder="A short professional bio (<=150 chars)" />
+          </label>
+          {error ? <div className="mt-2 text-sm text-rose-600">{error}</div> : null}
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" onClick={() => setEditing(false)} className="rounded-3xl bg-slate-100 px-3 py-2 text-sm">Cancel</button>
+            <button type="button" onClick={save} disabled={loading} className="rounded-3xl bg-slate-900 px-3 py-2 text-sm text-white">{loading ? 'Saving...' : 'Save'}</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setEditing(true)} className="rounded-3xl bg-white border px-4 py-2 text-sm">Edit profile</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MemberProfile() {
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
@@ -81,6 +159,26 @@ export default function MemberProfile() {
                     {user?.email || "No email available"}
                   </p>
                 </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-600">
+                    Member profile
+                  </p>
+                  <h1 className="mt-3 text-4xl font-semibold text-slate-950">
+                    {user?.name || "Member"}
+                  </h1>
+                  <p className="mt-2 text-sm text-slate-600">{user?.email || "No email available"}</p>
+                  {user?.specialty ? (
+                    <p className="mt-2 text-sm font-medium text-slate-700">{user.specialty}</p>
+                  ) : null}
+                  {user?.bio ? (
+                    <p className="mt-2 text-sm text-slate-600">{user.bio}</p>
+                  ) : null}
+                </div>
+
+                <EditProfileActions user={user} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">

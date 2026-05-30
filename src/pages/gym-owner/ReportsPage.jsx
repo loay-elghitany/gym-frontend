@@ -37,13 +37,31 @@ export default function ReportsPage() {
     try {
       setDownloadError(null);
       setDownloadLoading(true);
-      const response = await api.get("/owner/reports/export", {
+      const response = await api.get("/owner/reports/export?format=xlsx", {
         responseType: "blob",
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const contentDisposition =
+        response.headers["content-disposition"] ||
+        response.headers["Content-Disposition"] ||
+        "";
+      let filename = "members-report.csv";
+
+      const filenameMatch = contentDisposition.match(
+        /filename\*?=(?:UTF-8''|"|')?([^"';\n]+)/i,
+      );
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"\s]/g, "");
+      }
+
+      const contentType =
+        response.headers["content-type"] ||
+        response.headers["Content-Type"] ||
+        "application/octet-stream";
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "members.csv");
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -52,7 +70,7 @@ export default function ReportsPage() {
       setDownloadError(
         error?.response?.data?.message ||
           error?.message ||
-          "Unable to download members CSV.",
+          "Unable to download members report.",
       );
     } finally {
       setDownloadLoading(false);
@@ -165,7 +183,7 @@ export default function ReportsPage() {
               disabled={downloadLoading}
               className="inline-flex items-center justify-center rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
             >
-              {downloadLoading ? "Downloading..." : "Download Members CSV"}
+              {downloadLoading ? "Downloading..." : "Download Members Report"}
             </button>
           </div>
         </div>

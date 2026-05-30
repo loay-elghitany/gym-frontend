@@ -30,6 +30,7 @@ export default function LandingPageBuilder() {
     cover: false,
     gallery: false,
   });
+  const [previews, setPreviews] = useState({ logo: null, cover: null });
 
   const currentTenantSlug =
     tenant?.slug || detectTenantFromLocation(window.location)?.slug || null;
@@ -125,6 +126,31 @@ export default function LandingPageBuilder() {
     }
   };
 
+  const handleFileSelected = (field, file) => {
+    if (!file) return;
+    const key = field === "coverUrl" ? "cover" : "logo";
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      setPreviews((p) => ({ ...p, [key]: objectUrl }));
+    } catch (err) {
+      // ignore URL creation errors
+    }
+    // start upload (this will replace preview with official URL when done)
+    handleUpload(field, file);
+  };
+
+  // Revoke object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      try {
+        if (previews.logo) URL.revokeObjectURL(previews.logo);
+        if (previews.cover) URL.revokeObjectURL(previews.cover);
+      } catch (err) {
+        // noop
+      }
+    };
+  }, [previews]);
+
   const handleGalleryUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -146,6 +172,35 @@ export default function LandingPageBuilder() {
     } finally {
       setUploading((previous) => ({ ...previous, gallery: false }));
       event.target.value = "";
+    }
+  };
+
+  const handleGalleryDrop = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    setUploading((previous) => ({ ...previous, gallery: true }));
+    setError("");
+
+    try {
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const previewUrl = URL.createObjectURL(file);
+        setConfig((previous) => ({
+          ...previous,
+          galleryUrls: [...previous.galleryUrls, previewUrl],
+        }));
+        const url = await uploadToCloudinary(file);
+        setConfig((previous) => ({
+          ...previous,
+          galleryUrls: previous.galleryUrls.map((u) =>
+            u === previewUrl ? url : u,
+          ),
+        }));
+      }
+      setStatus("Gallery images added successfully.");
+    } catch (err) {
+      setError(err?.message || "Upload failed.");
+    } finally {
+      setUploading((previous) => ({ ...previous, gallery: false }));
     }
   };
 
@@ -321,25 +376,56 @@ export default function LandingPageBuilder() {
               </p>
 
               <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-4">
+                <div
+                  className="rounded-2xl bg-slate-50 p-4"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file) handleFileSelected("logoUrl", file);
+                  }}
+                >
                   <p className="text-sm font-semibold text-slate-900">Logo</p>
-                  {config.logoUrl ? (
+                  {previews.logo || config.logoUrl ? (
                     <img
-                      src={config.logoUrl}
+                      src={previews.logo || config.logoUrl}
                       alt="Logo preview"
                       className="mt-3 h-20 w-auto rounded-xl object-contain"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="mt-3 flex items-center gap-3 rounded-xl border-2 border-dashed border-slate-200 bg-white/20 p-6">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6 text-slate-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16V4m0 0L3 8m4-4 4 4M17 8v8a4 4 0 01-4 4H7"
+                        />
+                      </svg>
+                      <div className="text-sm text-slate-600">
+                        Drag & drop logo here, or click to browse
+                      </div>
+                    </div>
+                  )}
                   <label className="mt-3 block">
                     <span className="sr-only">Upload logo</span>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(event) =>
-                        handleUpload("logoUrl", event.target.files?.[0])
+                        handleFileSelected("logoUrl", event.target.files?.[0])
                       }
-                      className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                      className="block w-full text-sm text-slate-600 sr-only"
                     />
+                    <div className="mt-3 cursor-pointer text-sm text-slate-600">
+                      Click to upload
+                    </div>
                   </label>
                   {uploading.logo ? (
                     <p className="mt-3 text-sm text-slate-500">
@@ -348,27 +434,44 @@ export default function LandingPageBuilder() {
                   ) : null}
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
+                <div
+                  className="rounded-2xl bg-slate-50 p-4"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file) handleFileSelected("coverUrl", file);
+                  }}
+                >
                   <p className="text-sm font-semibold text-slate-900">
                     Hero cover
                   </p>
-                  {config.coverUrl ? (
+                  {previews.cover || config.coverUrl ? (
                     <img
-                      src={config.coverUrl}
+                      src={previews.cover || config.coverUrl}
                       alt="Cover preview"
                       className="mt-3 h-32 w-full rounded-xl object-cover"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="mt-3 flex h-32 w-full items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white/10 p-4">
+                      <div className="text-sm text-slate-600">
+                        Drag & drop cover image or click to browse
+                      </div>
+                    </div>
+                  )}
                   <label className="mt-3 block">
                     <span className="sr-only">Upload hero cover</span>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(event) =>
-                        handleUpload("coverUrl", event.target.files?.[0])
+                        handleFileSelected("coverUrl", event.target.files?.[0])
                       }
-                      className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                      className="block w-full text-sm text-slate-600 sr-only"
                     />
+                    <div className="mt-3 cursor-pointer text-sm text-slate-600">
+                      Click to upload
+                    </div>
                   </label>
                   {uploading.cover ? (
                     <p className="mt-3 text-sm text-slate-500">
@@ -378,7 +481,15 @@ export default function LandingPageBuilder() {
                 </div>
               </div>
 
-              <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+              <div
+                className="mt-6 rounded-2xl bg-slate-50 p-4"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const files = e.dataTransfer?.files;
+                  if (files && files.length > 0) handleGalleryDrop(files);
+                }}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
@@ -394,7 +505,8 @@ export default function LandingPageBuilder() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={handleGalleryUpload}
+                      onChange={(e) => handleGalleryDrop(e.target.files)}
+                      multiple
                       className="sr-only"
                     />
                   </label>

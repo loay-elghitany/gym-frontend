@@ -13,14 +13,19 @@ const emptyExercise = {
   gifUrl: "",
 };
 
-const emptyMeal = {
-  mealName: "",
+const emptyFoodItem = {
+  foodName: "",
   quantity: "",
   calories: null,
   protein: null,
   carbs: null,
   fats: null,
   baseUnit: "100g",
+};
+
+const emptyMeal = {
+  mealName: "",
+  foods: [{ ...emptyFoodItem }],
 };
 
 const toNumber = (value) => {
@@ -32,9 +37,9 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const getCalculatedMacros = (meal) => {
-  const quantity = toNumber(meal.quantity);
-  const baseUnit = String(meal.baseUnit || "100g")
+const getCalculatedFoodItem = (food) => {
+  const quantity = toNumber(food.quantity);
+  const baseUnit = String(food.baseUnit || "100g")
     .trim()
     .toLowerCase();
   const multiplier =
@@ -42,11 +47,26 @@ const getCalculatedMacros = (meal) => {
 
   return {
     calories:
-      meal.calories === null ? null : toNumber(meal.calories) * multiplier,
-    protein: meal.protein === null ? null : toNumber(meal.protein) * multiplier,
-    carbs: meal.carbs === null ? null : toNumber(meal.carbs) * multiplier,
-    fats: meal.fats === null ? null : toNumber(meal.fats) * multiplier,
+      food.calories === null ? null : toNumber(food.calories) * multiplier,
+    protein: food.protein === null ? null : toNumber(food.protein) * multiplier,
+    carbs: food.carbs === null ? null : toNumber(food.carbs) * multiplier,
+    fats: food.fats === null ? null : toNumber(food.fats) * multiplier,
   };
+};
+
+const getMealTotals = (meal) => {
+  return meal.foods.reduce(
+    (totals, food) => {
+      const macros = getCalculatedFoodItem(food);
+      return {
+        calories: totals.calories + (macros.calories || 0),
+        protein: totals.protein + (macros.protein || 0),
+        carbs: totals.carbs + (macros.carbs || 0),
+        fats: totals.fats + (macros.fats || 0),
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fats: 0 },
+  );
 };
 
 export default function TrainerPlans() {
@@ -262,46 +282,52 @@ export default function TrainerPlans() {
     ];
   };
 
-  const updateMeal = (index, field, value) => {
+  const updateMeal = (mealIndex, field, value) => {
+    setMeals((current) =>
+      current.map((meal, idx) =>
+        idx !== mealIndex ? meal : { ...meal, [field]: value },
+      ),
+    );
+  };
+
+  const updateFoodItem = (mealIndex, foodIndex, field, value) => {
     setMeals((current) =>
       current.map((meal, idx) => {
-        if (idx !== index) {
-          return meal;
-        }
+        if (idx !== mealIndex) return meal;
 
-        const nextMeal = { ...meal, [field]: value };
-
-        if (field === "mealName") {
-          nextMeal.calories = null;
-          nextMeal.protein = null;
-          nextMeal.carbs = null;
-          nextMeal.fats = null;
-          nextMeal.baseUnit = "100g";
-        }
-
-        return nextMeal;
+        return {
+          ...meal,
+          foods: meal.foods.map((food, fIdx) =>
+            fIdx !== foodIndex ? food : { ...food, [field]: value },
+          ),
+        };
       }),
     );
   };
 
-  const selectFood = (index, selectedFood) => {
+  const selectFood = (mealIndex, foodIndex, selectedFood) => {
+    const foodName =
+      selectedFood?.nameAr?.trim() || selectedFood?.nameEn?.trim() || "";
+
     setMeals((current) =>
       current.map((meal, idx) => {
-        if (idx !== index) {
-          return meal;
-        }
+        if (idx !== mealIndex) return meal;
 
         return {
           ...meal,
-          mealName:
-            selectedFood?.nameAr?.trim() ||
-            selectedFood?.nameEn?.trim() ||
-            meal.mealName,
-          calories: Number(selectedFood?.calories) || 0,
-          protein: Number(selectedFood?.protein) || 0,
-          carbs: Number(selectedFood?.carbs) || 0,
-          fats: Number(selectedFood?.fats) || 0,
-          baseUnit: selectedFood?.baseUnit || "100g",
+          foods: meal.foods.map((food, fIdx) =>
+            fIdx !== foodIndex
+              ? food
+              : {
+                  ...food,
+                  foodName,
+                  calories: Number(selectedFood?.calories) || 0,
+                  protein: Number(selectedFood?.protein) || 0,
+                  carbs: Number(selectedFood?.carbs) || 0,
+                  fats: Number(selectedFood?.fats) || 0,
+                  baseUnit: selectedFood?.baseUnit || "100g",
+                },
+          ),
         };
       }),
     );
@@ -309,6 +335,30 @@ export default function TrainerPlans() {
 
   const addMeal = () => {
     setMeals((current) => [...current, { ...emptyMeal }]);
+  };
+
+  const addFoodToMeal = (mealIndex) => {
+    setMeals((current) =>
+      current.map((meal, idx) =>
+        idx !== mealIndex
+          ? meal
+          : { ...meal, foods: [...meal.foods, { ...emptyFoodItem }] },
+      ),
+    );
+  };
+
+  const removeFoodFromMeal = (mealIndex, foodIndex) => {
+    setMeals((current) =>
+      current.map((meal, idx) => {
+        if (idx !== mealIndex) return meal;
+
+        const nextFoods = meal.foods.filter((_, fIdx) => fIdx !== foodIndex);
+        return {
+          ...meal,
+          foods: nextFoods.length ? nextFoods : [{ ...emptyFoodItem }],
+        };
+      }),
+    );
   };
 
   const removeMeal = (index) => {
@@ -332,15 +382,7 @@ export default function TrainerPlans() {
       Array.isArray(template.meals) && template.meals.length
         ? template.meals.map((meal) => ({
             mealName: meal.mealName || meal.item || "",
-            quantity:
-              meal.quantity !== undefined && meal.quantity !== null
-                ? String(meal.quantity)
-                : "",
-            calories: meal.calories ?? null,
-            protein: meal.protein ?? null,
-            carbs: meal.carbs ?? null,
-            fats: meal.fats ?? null,
-            baseUnit: meal.baseUnit || "100g",
+            foods: [{ ...emptyFoodItem }],
           }))
         : [emptyMeal],
     );
@@ -391,13 +433,16 @@ export default function TrainerPlans() {
         .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
           mealName: meal.mealName.trim(),
-          description: "",
-          quantity: Number(meal.quantity) || 0,
-          calories: meal.calories === null ? null : Number(meal.calories) || 0,
-          protein: meal.protein === null ? null : Number(meal.protein) || 0,
-          carbs: meal.carbs === null ? null : Number(meal.carbs) || 0,
-          fats: meal.fats === null ? null : Number(meal.fats) || 0,
-          baseUnit: meal.baseUnit || "100g",
+          description: meal.foods
+            .map((food) =>
+              String(food.foodName || "").trim()
+                ? `${String(food.foodName || "").trim()} ${String(
+                    food.quantity || "",
+                  ).trim()}`
+                : "",
+            )
+            .filter(Boolean)
+            .join(", "),
         })),
     };
 
@@ -459,7 +504,9 @@ export default function TrainerPlans() {
         .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
           item: meal.mealName.trim(),
-          alternatives: [],
+          alternatives: meal.foods
+            .map((food) => String(food.foodName || "").trim())
+            .filter(Boolean),
         }));
 
       const payload = {
@@ -749,67 +796,159 @@ export default function TrainerPlans() {
           </div>
           <div className="space-y-3">
             {meals.map((meal, index) => {
-              const calculated = getCalculatedMacros(meal);
-              const hasMacroData =
-                meal.calories !== null ||
-                meal.protein !== null ||
-                meal.carbs !== null ||
-                meal.fats !== null;
+              const totals = getMealTotals(meal);
+              const mealHasFood = meal.foods.some((food) =>
+                String(food.foodName || "").trim(),
+              );
 
               return (
                 <div
                   key={index}
                   className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex-1 min-w-0">
-                      <FoodAutocomplete
-                        value={meal.mealName}
-                        onValueChange={(nextValue) =>
-                          updateMeal(index, "mealName", nextValue)
-                        }
-                        onSelect={(selectedFood) =>
-                          selectFood(index, selectedFood)
-                        }
-                        placeholder="Search food or type custom"
-                      />
-                    </div>
-
-                    <div className="xl:w-40">
-                      <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        Quantity
-                      </label>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={meal.quantity}
-                        onChange={(event) =>
-                          updateMeal(index, "quantity", event.target.value)
+                        value={meal.mealName}
+                        onChange={(e) =>
+                          updateMeal(index, "mealName", e.target.value)
                         }
-                        className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                        placeholder="200"
+                        className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        placeholder={`Meal ${index + 1}: Breakfast`}
                       />
-                    </div>
-
-                    <div className="xl:w-56">
-                      <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        Live macros
-                      </span>
-                      <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">
-                        {hasMacroData
-                          ? `${Math.round(calculated.calories || 0)} kcal | ${Math.round((calculated.protein || 0) * 10) / 10}g P`
-                          : "Start typing to preview"}
-                      </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => removeMeal(index)}
-                      className="w-full rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100 xl:w-auto"
+                      className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
                     >
-                      Remove
+                      Remove meal
                     </button>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {meal.foods.map((food, foodIndex) => {
+                      const calculatedFood = getCalculatedFoodItem(food);
+                      const hasFoodData = Boolean(
+                        String(food.foodName || "").trim(),
+                      );
+
+                      return (
+                        <div
+                          key={`${index}-${foodIndex}`}
+                          className="grid gap-3 sm:grid-cols-[1fr_96px_140px_auto]"
+                        >
+                          <div className="min-w-0">
+                            <FoodAutocomplete
+                              value={food.foodName}
+                              onValueChange={(nextValue) =>
+                                updateFoodItem(
+                                  index,
+                                  foodIndex,
+                                  "foodName",
+                                  nextValue,
+                                )
+                              }
+                              onSelect={(selectedFood) =>
+                                selectFood(index, foodIndex, selectedFood)
+                              }
+                              placeholder="Search food or type custom"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                              Qty
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={food.quantity}
+                              onChange={(event) =>
+                                updateFoodItem(
+                                  index,
+                                  foodIndex,
+                                  "quantity",
+                                  event.target.value,
+                                )
+                              }
+                              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                              placeholder="100"
+                            />
+                          </div>
+
+                          <div className="rounded-3xl border border-slate-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-700">
+                              Food macros
+                            </p>
+                            <p className="mt-2 font-semibold">
+                              {hasFoodData
+                                ? `${Math.round(calculatedFood.calories || 0)} kcal • ${Math.round((calculatedFood.protein || 0) * 10) / 10}g P`
+                                : "No food selected"}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeFoodFromMeal(index, foodIndex)}
+                            className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={() => addFoodToMeal(index)}
+                      className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                    >
+                      Add Food Item
+                    </button>
+                    <div className="rounded-3xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                        Meal subtotal
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            kcal
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {Math.round(totals.calories)}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            protein
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {Math.round(totals.protein * 10) / 10} g
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            carbs
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {Math.round(totals.carbs * 10) / 10} g
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            fats
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {Math.round(totals.fats * 10) / 10} g
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
