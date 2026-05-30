@@ -69,6 +69,10 @@ const getMealTotals = (meal) => {
   );
 };
 
+const getCalculatedMacros = (meal) => {
+  return getMealTotals(meal);
+};
+
 export default function TrainerPlans() {
   const { t } = useTranslation();
   const [members, setMembers] = useState([]);
