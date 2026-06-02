@@ -66,6 +66,13 @@ export default function LandingPageBuilder() {
           return;
         }
 
+        // Explicitly map trainers from the API response
+        const trainersFromResponse = Array.isArray(
+          payload?.landingPageConfig?.trainers,
+        )
+          ? payload.landingPageConfig.trainers
+          : [];
+
         setConfig({
           heroTitle: payload?.landingPageConfig?.heroTitle || "",
           heroSubtitle: payload?.landingPageConfig?.heroSubtitle || "",
@@ -76,9 +83,7 @@ export default function LandingPageBuilder() {
           galleryUrls: Array.isArray(payload?.landingPageConfig?.galleryUrls)
             ? payload.landingPageConfig.galleryUrls
             : [],
-          trainers: Array.isArray(payload?.landingPageConfig?.trainers)
-            ? payload.landingPageConfig.trainers
-            : [],
+          trainers: trainersFromResponse,
           facebookUrl: payload?.landingPageConfig?.facebookUrl || "",
           instagramUrl: payload?.landingPageConfig?.instagramUrl || "",
           whatsappNumber: payload?.landingPageConfig?.whatsappNumber || "",
@@ -288,13 +293,33 @@ export default function LandingPageBuilder() {
     setStatus("");
 
     try {
-      const response = await api.put("/gym/landing-config", {
-        ...config,
+      // Prepare the request payload with explicit trainers array
+      const requestPayload = {
+        heroTitle: config.heroTitle,
+        heroSubtitle: config.heroSubtitle,
+        aboutText: config.aboutText,
+        themeColor: config.themeColor,
+        logoUrl: config.logoUrl,
+        coverUrl: config.coverUrl,
         galleryUrls: config.galleryUrls.filter(Boolean),
-        trainers: config.trainers.filter((t) => t.name),
-      });
+        trainers: Array.isArray(config.trainers)
+          ? config.trainers.filter((t) => t.name && t.name.trim())
+          : [],
+        facebookUrl: config.facebookUrl,
+        instagramUrl: config.instagramUrl,
+        whatsappNumber: config.whatsappNumber,
+        isActive: config.isActive,
+      };
+
+      const response = await api.put("/gym/landing-config", requestPayload);
 
       setStatus("Landing page updated successfully.");
+
+      // Extract trainers from response with explicit fallback to current config
+      const responseTrainers = Array.isArray(response?.data?.data?.trainers)
+        ? response.data.data.trainers
+        : config.trainers;
+
       setConfig({
         heroTitle: response?.data?.data?.heroTitle || config.heroTitle,
         heroSubtitle: response?.data?.data?.heroSubtitle || config.heroSubtitle,
@@ -305,9 +330,7 @@ export default function LandingPageBuilder() {
         galleryUrls: Array.isArray(response?.data?.data?.galleryUrls)
           ? response.data.data.galleryUrls
           : config.galleryUrls,
-        trainers: Array.isArray(response?.data?.data?.trainers)
-          ? response.data.data.trainers
-          : config.trainers,
+        trainers: responseTrainers,
         facebookUrl: response?.data?.data?.facebookUrl || config.facebookUrl,
         instagramUrl: response?.data?.data?.instagramUrl || config.instagramUrl,
         whatsappNumber:
@@ -641,13 +664,16 @@ export default function LandingPageBuilder() {
                 Team / Trainers
               </h2>
               <p className="text-sm text-slate-600 mb-6">
-                Add marketing trainers to showcase on your landing page. These are independent of your system user accounts.
+                Add marketing trainers to showcase on your landing page. These
+                are independent of your system user accounts.
               </p>
 
               {/* Trainer Form */}
               <div className="mb-8 rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                  {editingTrainerIndex !== null ? "Edit Trainer" : "Add New Trainer"}
+                  {editingTrainerIndex !== null
+                    ? "Edit Trainer"
+                    : "Add New Trainer"}
                 </h3>
 
                 <div className="space-y-4">
@@ -826,7 +852,8 @@ export default function LandingPageBuilder() {
                 ) : (
                   <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
                     <p className="text-sm text-slate-600">
-                      No trainers added yet. Add one above to display on your landing page.
+                      No trainers added yet. Add one above to display on your
+                      landing page.
                     </p>
                   </div>
                 )}

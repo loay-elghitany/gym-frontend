@@ -12,14 +12,19 @@ const emptyExercise = {
   gifUrl: "",
 };
 
-const emptyMeal = {
-  mealName: "",
+const emptyFoodItem = {
+  foodName: "",
   quantity: "",
   calories: null,
   protein: null,
   carbs: null,
   fats: null,
   baseUnit: "100g",
+};
+
+const emptyMeal = {
+  mealName: "",
+  foods: [{ ...emptyFoodItem }],
 };
 
 export default function SmartTemplatesBuilder() {
@@ -31,7 +36,7 @@ export default function SmartTemplatesBuilder() {
     { dayName: "Day 1", exercises: [{ ...emptyExercise }] },
   ]);
   const [expandedDay, setExpandedDay] = useState(0);
-  const [newMeals, setNewMeals] = useState([emptyMeal]);
+  const [dietMeals, setDietMeals] = useState([emptyMeal]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [messageTone, setMessageTone] = useState("neutral");
@@ -61,7 +66,7 @@ export default function SmartTemplatesBuilder() {
     setTemplateName("");
     setTemplateDays([{ dayName: "Day 1", exercises: [{ ...emptyExercise }] }]);
     setExpandedDay(0);
-    setNewMeals([emptyMeal]);
+    setDietMeals([emptyMeal]);
     setSaving(false);
     setMessage(null);
     setMessageTone("neutral");
@@ -150,58 +155,104 @@ export default function SmartTemplatesBuilder() {
     setExpandedDay((current) => Math.max(0, current - 1));
   };
 
+  const getTemplateMealAndFoodCounts = (template) => {
+    const meals = Array.isArray(template?.meals) ? template.meals : [];
+    const mealCount = meals.length;
+    const foodCount = meals.reduce((count, meal) => {
+      const foods = Array.isArray(meal?.foods) ? meal.foods : [];
+      return (
+        count +
+        foods.filter((food) =>
+          String(food?.foodName || food?.name || food?.item || "").trim(),
+        ).length
+      );
+    }, 0);
+
+    return { mealCount, foodCount };
+  };
+
   // Meal functions
-  const updateMeal = (index, field, value) => {
-    setNewMeals((prev) =>
-      prev.map((meal, idx) => {
-        if (idx !== index) {
-          return meal;
-        }
+  const updateMealName = (mealIndex, value) => {
+    setDietMeals((current) =>
+      current.map((meal, idx) =>
+        idx === mealIndex ? { ...meal, mealName: value } : meal,
+      ),
+    );
+  };
 
-        const nextMeal = { ...meal, [field]: value };
+  const updateFoodItem = (mealIndex, foodIndex, field, value) => {
+    setDietMeals((current) =>
+      current.map((meal, idx) => {
+        if (idx !== mealIndex) return meal;
 
-        if (field === "mealName") {
-          nextMeal.calories = null;
-          nextMeal.protein = null;
-          nextMeal.carbs = null;
-          nextMeal.fats = null;
-          nextMeal.baseUnit = "100g";
-        }
-
-        return nextMeal;
+        return {
+          ...meal,
+          foods: meal.foods.map((food, fIdx) =>
+            fIdx === foodIndex ? { ...food, [field]: value } : food,
+          ),
+        };
       }),
     );
   };
 
-  const selectFood = (index, selectedFood) => {
-    setNewMeals((prev) =>
-      prev.map((meal, idx) => {
-        if (idx !== index) {
-          return meal;
-        }
+  const selectFood = (mealIndex, foodIndex, selectedFood) => {
+    setDietMeals((current) =>
+      current.map((meal, idx) => {
+        if (idx !== mealIndex) return meal;
 
         return {
           ...meal,
-          mealName:
-            selectedFood?.nameAr?.trim() ||
-            selectedFood?.nameEn?.trim() ||
-            meal.mealName,
-          calories: Number(selectedFood?.calories) || 0,
-          protein: Number(selectedFood?.protein) || 0,
-          carbs: Number(selectedFood?.carbs) || 0,
-          fats: Number(selectedFood?.fats) || 0,
-          baseUnit: selectedFood?.baseUnit || "100g",
+          foods: meal.foods.map((food, fIdx) =>
+            fIdx !== foodIndex
+              ? food
+              : {
+                  ...food,
+                  foodName:
+                    selectedFood?.nameAr?.trim() ||
+                    selectedFood?.nameEn?.trim() ||
+                    food.foodName,
+                  calories: Number(selectedFood?.calories) || 0,
+                  protein: Number(selectedFood?.protein) || 0,
+                  carbs: Number(selectedFood?.carbs) || 0,
+                  fats: Number(selectedFood?.fats) || 0,
+                  baseUnit: selectedFood?.baseUnit || "100g",
+                },
+          ),
         };
       }),
     );
   };
 
   const addMeal = () => {
-    setNewMeals((prev) => [...prev, { ...emptyMeal }]);
+    setDietMeals((prev) => [...prev, { ...emptyMeal }]);
+  };
+
+  const addFoodToMeal = (mealIndex) => {
+    setDietMeals((current) =>
+      current.map((meal, idx) =>
+        idx !== mealIndex
+          ? meal
+          : { ...meal, foods: [...meal.foods, { ...emptyFoodItem }] },
+      ),
+    );
+  };
+
+  const removeFoodFromMeal = (mealIndex, foodIndex) => {
+    setDietMeals((current) =>
+      current.map((meal, idx) => {
+        if (idx !== mealIndex) return meal;
+
+        const nextFoods = meal.foods.filter((_, fIdx) => fIdx !== foodIndex);
+        return {
+          ...meal,
+          foods: nextFoods.length ? nextFoods : [{ ...emptyFoodItem }],
+        };
+      }),
+    );
   };
 
   const removeMeal = (index) => {
-    setNewMeals((prev) => prev.filter((_, idx) => idx !== index));
+    setDietMeals((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const toNumber = (value) => {
@@ -213,9 +264,9 @@ export default function SmartTemplatesBuilder() {
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const getCalculatedMacros = (meal) => {
-    const quantity = toNumber(meal.quantity);
-    const baseUnit = String(meal.baseUnit || "100g")
+  const getCalculatedFoodItem = (food) => {
+    const quantity = toNumber(food.quantity);
+    const baseUnit = String(food.baseUnit || "100g")
       .trim()
       .toLowerCase();
     const multiplier =
@@ -223,16 +274,33 @@ export default function SmartTemplatesBuilder() {
 
     return {
       calories:
-        meal.calories === null ? null : toNumber(meal.calories) * multiplier,
+        food.calories === null ? null : toNumber(food.calories) * multiplier,
       protein:
-        meal.protein === null ? null : toNumber(meal.protein) * multiplier,
-      carbs: meal.carbs === null ? null : toNumber(meal.carbs) * multiplier,
-      fats: meal.fats === null ? null : toNumber(meal.fats) * multiplier,
+        food.protein === null ? null : toNumber(food.protein) * multiplier,
+      carbs: food.carbs === null ? null : toNumber(food.carbs) * multiplier,
+      fats: food.fats === null ? null : toNumber(food.fats) * multiplier,
     };
   };
 
+  const getMealTotals = (meal) => {
+    return (meal.foods || []).reduce(
+      (totals, food) => {
+        const macros = getCalculatedFoodItem(food);
+        return {
+          calories: totals.calories + (macros.calories || 0),
+          protein: totals.protein + (macros.protein || 0),
+          carbs: totals.carbs + (macros.carbs || 0),
+          fats: totals.fats + (macros.fats || 0),
+        };
+      },
+      { calories: 0, protein: 0, carbs: 0, fats: 0 },
+    );
+  };
+
+  const getCalculatedMacros = getMealTotals;
+
   const planTotals = useMemo(() => {
-    return newMeals.reduce(
+    return dietMeals.reduce(
       (totals, meal) => {
         const macros = getCalculatedMacros(meal);
 
@@ -245,7 +313,7 @@ export default function SmartTemplatesBuilder() {
       },
       { calories: 0, protein: 0, carbs: 0, fats: 0 },
     );
-  }, [newMeals]);
+  }, [dietMeals]);
 
   const handleCreateTemplate = async (event) => {
     event.preventDefault();
@@ -287,17 +355,22 @@ export default function SmartTemplatesBuilder() {
               ],
             },
           ],
-      meals: newMeals
+      meals: dietMeals
         .filter((meal) => meal.mealName.trim())
         .map((meal) => ({
           mealName: meal.mealName.trim(),
-          description: "",
-          quantity: Number(meal.quantity) || 0,
-          calories: meal.calories === null ? null : Number(meal.calories) || 0,
-          protein: meal.protein === null ? null : Number(meal.protein) || 0,
-          carbs: meal.carbs === null ? null : Number(meal.carbs) || 0,
-          fats: meal.fats === null ? null : Number(meal.fats) || 0,
-          baseUnit: meal.baseUnit || "100g",
+          foods: (meal.foods || [])
+            .filter((food) => String(food.foodName || "").trim())
+            .map((food) => ({
+              foodName: String(food.foodName || "").trim(),
+              quantity: Number(food.quantity) || 0,
+              calories:
+                food.calories === null ? null : Number(food.calories) || 0,
+              protein: food.protein === null ? null : Number(food.protein) || 0,
+              carbs: food.carbs === null ? null : Number(food.carbs) || 0,
+              fats: food.fats === null ? null : Number(food.fats) || 0,
+              baseUnit: food.baseUnit || "100g",
+            })),
         })),
     };
 
@@ -365,9 +438,12 @@ export default function SmartTemplatesBuilder() {
                       <p className="font-semibold text-slate-900">
                         {template.templateName}
                       </p>
-                      <p className="text-sm text-slate-500">
-                        {template.exercises?.length || 0} exercises •{" "}
-                        {template.meals?.length || 0} meals
+                      <p className="text-sm text-slate-500 whitespace-nowrap">
+                        {(() => {
+                          const { mealCount, foodCount } =
+                            getTemplateMealAndFoodCounts(template);
+                          return `${mealCount} meal${mealCount === 1 ? "" : "s"} (${foodCount} item${foodCount === 1 ? "" : "s"})`;
+                        })()}
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-900">
@@ -693,71 +769,168 @@ export default function SmartTemplatesBuilder() {
                 </div>
 
                 <div className="grid gap-3">
-                  {newMeals.map((meal, index) => {
-                    const calculated = getCalculatedMacros(meal);
-                    const hasMacroData =
-                      meal.calories !== null ||
-                      meal.protein !== null ||
-                      meal.carbs !== null ||
-                      meal.fats !== null;
+                  {dietMeals.map((meal, mealIndex) => {
+                    const mealTotals = getMealTotals(meal);
+                    const hasFoodData = meal.foods.some((food) =>
+                      String(food.foodName || "").trim(),
+                    );
 
                     return (
                       <div
-                        key={index}
+                        key={mealIndex}
                         className="rounded-3xl bg-white p-4 shadow-sm"
                       >
-                        <div className="grid gap-3 xl:grid-cols-[1.4fr_0.7fr_auto] xl:items-start">
+                        <div className="grid gap-3 xl:grid-cols-[1.2fr_auto] xl:items-start">
                           <div className="w-full">
-                            <FoodAutocomplete
-                              value={meal.mealName}
-                              onValueChange={(nextValue) =>
-                                updateMeal(index, "mealName", nextValue)
-                              }
-                              onSelect={(selectedFood) =>
-                                selectFood(index, selectedFood)
-                              }
-                              placeholder="Search food or type custom"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                              Quantity
-                            </label>
+                            <label className="sr-only">Meal name</label>
                             <input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={meal.quantity}
+                              value={meal.mealName}
                               onChange={(event) =>
-                                updateMeal(
-                                  index,
-                                  "quantity",
-                                  event.target.value,
-                                )
+                                updateMealName(mealIndex, event.target.value)
                               }
-                              className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                              placeholder="200"
+                              className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                              placeholder="Meal name (e.g., Breakfast)"
                             />
                           </div>
 
                           <button
-                            onClick={() => removeMeal(index)}
+                            onClick={() => removeMeal(mealIndex)}
                             type="button"
                             className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
                           >
-                            Remove
+                            Remove meal
                           </button>
                         </div>
 
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="mt-4 space-y-3">
+                          {meal.foods.map((food, foodIndex) => (
+                            <div
+                              key={`${mealIndex}-${foodIndex}`}
+                              className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm xl:grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] xl:items-end"
+                            >
+                              <div className="w-full">
+                                <FoodAutocomplete
+                                  value={food.foodName}
+                                  onValueChange={(nextValue) =>
+                                    updateFoodItem(
+                                      mealIndex,
+                                      foodIndex,
+                                      "foodName",
+                                      nextValue,
+                                    )
+                                  }
+                                  onSelect={(selectedFood) =>
+                                    selectFood(
+                                      mealIndex,
+                                      foodIndex,
+                                      selectedFood,
+                                    )
+                                  }
+                                  placeholder="Search food or type custom"
+                                />
+                              </div>
+
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={food.quantity}
+                                onChange={(event) =>
+                                  updateFoodItem(
+                                    mealIndex,
+                                    foodIndex,
+                                    "quantity",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Qty"
+                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                              />
+
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={
+                                  food.calories === null ? "" : food.calories
+                                }
+                                onChange={(event) =>
+                                  updateFoodItem(
+                                    mealIndex,
+                                    foodIndex,
+                                    "calories",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Calories"
+                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                              />
+
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={
+                                  food.protein === null ? "" : food.protein
+                                }
+                                onChange={(event) =>
+                                  updateFoodItem(
+                                    mealIndex,
+                                    foodIndex,
+                                    "protein",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Protein"
+                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                              />
+
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={food.carbs === null ? "" : food.carbs}
+                                onChange={(event) =>
+                                  updateFoodItem(
+                                    mealIndex,
+                                    foodIndex,
+                                    "carbs",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Carbs"
+                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeFoodFromMeal(mealIndex, foodIndex)
+                                }
+                                className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => addFoodToMeal(mealIndex)}
+                          className="mt-4 rounded-3xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 border border-slate-200 hover:bg-slate-50"
+                        >
+                          + Add food item
+                        </button>
+
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
                               Calories
                             </p>
                             <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasMacroData
-                                ? `${Math.round(calculated.calories || 0)} kcal`
+                              {hasFoodData
+                                ? `${Math.round(mealTotals.calories || 0)} kcal`
                                 : "N/A"}
                             </p>
                           </div>
@@ -766,8 +939,8 @@ export default function SmartTemplatesBuilder() {
                               Protein
                             </p>
                             <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasMacroData
-                                ? `${Math.round((calculated.protein || 0) * 10) / 10} g`
+                              {hasFoodData
+                                ? `${Math.round((mealTotals.protein || 0) * 10) / 10} g`
                                 : "N/A"}
                             </p>
                           </div>
@@ -776,8 +949,8 @@ export default function SmartTemplatesBuilder() {
                               Carbs
                             </p>
                             <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasMacroData
-                                ? `${Math.round((calculated.carbs || 0) * 10) / 10} g`
+                              {hasFoodData
+                                ? `${Math.round((mealTotals.carbs || 0) * 10) / 10} g`
                                 : "N/A"}
                             </p>
                           </div>
@@ -786,8 +959,8 @@ export default function SmartTemplatesBuilder() {
                               Fats
                             </p>
                             <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasMacroData
-                                ? `${Math.round((calculated.fats || 0) * 10) / 10} g`
+                              {hasFoodData
+                                ? `${Math.round((mealTotals.fats || 0) * 10) / 10} g`
                                 : "N/A"}
                             </p>
                           </div>
