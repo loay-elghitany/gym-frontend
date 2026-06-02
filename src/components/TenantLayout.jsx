@@ -131,7 +131,14 @@ function NavIcon({ type }) {
 }
 
 export default function TenantLayout() {
-  const { tenant, user, userRole, logout, loading: authLoading } = useAuth();
+  const {
+    tenant,
+    user,
+    userRole,
+    logout,
+    loading: authLoading,
+    isTenantVerified,
+  } = useAuth();
   const { t, i18n } = useTranslation();
 
   const [broadcasts, setBroadcasts] = useState([]);
@@ -200,8 +207,8 @@ export default function TenantLayout() {
       ? `https://t.me/${telegramBotUsername}?start=${user._id}`
       : null;
 
-  // ✅ نزلنا شاشة التحميل لتحت عشان متكسرش الـ Hooks
-  if (authLoading) {
+  // ✅ Show loading screen if auth is loading OR tenant is not yet verified
+  if (authLoading || !isTenantVerified) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6 py-12">
         <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-lg shadow-slate-900/5">

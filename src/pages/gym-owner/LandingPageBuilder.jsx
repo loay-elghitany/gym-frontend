@@ -12,6 +12,7 @@ const defaultConfig = {
   logoUrl: "",
   coverUrl: "",
   galleryUrls: [],
+  trainers: [],
   facebookUrl: "",
   instagramUrl: "",
   whatsappNumber: "",
@@ -29,8 +30,17 @@ export default function LandingPageBuilder() {
     logo: false,
     cover: false,
     gallery: false,
+    trainer: false,
   });
   const [previews, setPreviews] = useState({ logo: null, cover: null });
+  const [editingTrainerIndex, setEditingTrainerIndex] = useState(null);
+  const [trainerForm, setTrainerForm] = useState({
+    id: "",
+    name: "",
+    specialty: "",
+    bio: "",
+    imageUrl: "",
+  });
 
   const currentTenantSlug =
     tenant?.slug || detectTenantFromLocation(window.location)?.slug || null;
@@ -65,6 +75,9 @@ export default function LandingPageBuilder() {
           coverUrl: payload?.landingPageConfig?.coverUrl || "",
           galleryUrls: Array.isArray(payload?.landingPageConfig?.galleryUrls)
             ? payload.landingPageConfig.galleryUrls
+            : [],
+          trainers: Array.isArray(payload?.landingPageConfig?.trainers)
+            ? payload.landingPageConfig.trainers
             : [],
           facebookUrl: payload?.landingPageConfig?.facebookUrl || "",
           instagramUrl: payload?.landingPageConfig?.instagramUrl || "",
@@ -204,6 +217,70 @@ export default function LandingPageBuilder() {
     }
   };
 
+  const handleAddTrainer = () => {
+    if (!trainerForm.name.trim()) {
+      setError("Trainer name is required.");
+      return;
+    }
+    if (editingTrainerIndex !== null) {
+      // Update existing trainer
+      const updatedTrainers = [...config.trainers];
+      updatedTrainers[editingTrainerIndex] = {
+        ...trainerForm,
+        id: trainerForm.id || `trainer-${Date.now()}`,
+      };
+      setConfig((prev) => ({ ...prev, trainers: updatedTrainers }));
+      setEditingTrainerIndex(null);
+      setStatus("Trainer updated successfully.");
+    } else {
+      // Add new trainer
+      const newTrainer = {
+        ...trainerForm,
+        id: trainerForm.id || `trainer-${Date.now()}`,
+      };
+      setConfig((prev) => ({
+        ...prev,
+        trainers: [...prev.trainers, newTrainer],
+      }));
+      setStatus("Trainer added successfully.");
+    }
+    setTrainerForm({ id: "", name: "", specialty: "", bio: "", imageUrl: "" });
+    setError("");
+  };
+
+  const handleEditTrainer = (index) => {
+    setTrainerForm(config.trainers[index]);
+    setEditingTrainerIndex(index);
+  };
+
+  const handleRemoveTrainer = (index) => {
+    setConfig((prev) => ({
+      ...prev,
+      trainers: prev.trainers.filter((_, i) => i !== index),
+    }));
+    setStatus("Trainer removed successfully.");
+  };
+
+  const handleCancelEditTrainer = () => {
+    setTrainerForm({ id: "", name: "", specialty: "", bio: "", imageUrl: "" });
+    setEditingTrainerIndex(null);
+  };
+
+  const handleTrainerImageUpload = async (file) => {
+    if (!file) return;
+    setUploading((prev) => ({ ...prev, trainer: true }));
+    setError("");
+    try {
+      const url = await uploadToCloudinary(file);
+      setTrainerForm((prev) => ({ ...prev, imageUrl: url }));
+      setStatus("Trainer image uploaded successfully.");
+    } catch (err) {
+      setError(err?.message || "Failed to upload trainer image.");
+    } finally {
+      setUploading((prev) => ({ ...prev, trainer: false }));
+    }
+  };
+
   const handleSave = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -214,6 +291,7 @@ export default function LandingPageBuilder() {
       const response = await api.put("/gym/landing-config", {
         ...config,
         galleryUrls: config.galleryUrls.filter(Boolean),
+        trainers: config.trainers.filter((t) => t.name),
       });
 
       setStatus("Landing page updated successfully.");
@@ -227,6 +305,9 @@ export default function LandingPageBuilder() {
         galleryUrls: Array.isArray(response?.data?.data?.galleryUrls)
           ? response.data.data.galleryUrls
           : config.galleryUrls,
+        trainers: Array.isArray(response?.data?.data?.trainers)
+          ? response.data.data.trainers
+          : config.trainers,
         facebookUrl: response?.data?.data?.facebookUrl || config.facebookUrl,
         instagramUrl: response?.data?.data?.instagramUrl || config.instagramUrl,
         whatsappNumber:
@@ -551,6 +632,204 @@ export default function LandingPageBuilder() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Team / Trainers Section */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950 mb-2">
+                Team / Trainers
+              </h2>
+              <p className="text-sm text-slate-600 mb-6">
+                Add marketing trainers to showcase on your landing page. These are independent of your system user accounts.
+              </p>
+
+              {/* Trainer Form */}
+              <div className="mb-8 rounded-xl bg-slate-50 p-4 border border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                  {editingTrainerIndex !== null ? "Edit Trainer" : "Add New Trainer"}
+                </h3>
+
+                <div className="space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Trainer name *
+                      <input
+                        value={trainerForm.name}
+                        onChange={(e) =>
+                          setTrainerForm((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder="John Smith"
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Specialty
+                      <input
+                        value={trainerForm.specialty}
+                        onChange={(e) =>
+                          setTrainerForm((prev) => ({
+                            ...prev,
+                            specialty: e.target.value,
+                          }))
+                        }
+                        placeholder="Strength & Conditioning"
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block text-sm font-medium text-slate-700">
+                    Bio
+                    <textarea
+                      value={trainerForm.bio}
+                      onChange={(e) =>
+                        setTrainerForm((prev) => ({
+                          ...prev,
+                          bio: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder="A brief description of this trainer's experience and coaching style..."
+                      className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-sky-500"
+                    />
+                  </label>
+
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">
+                      Trainer Image
+                    </p>
+                    <div className="flex items-center gap-4">
+                      {trainerForm.imageUrl ? (
+                        <img
+                          src={trainerForm.imageUrl}
+                          alt="Trainer"
+                          className="h-20 w-20 rounded-xl object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="h-20 w-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500">
+                          No image
+                        </div>
+                      )}
+                      <label className="inline-flex cursor-pointer items-center rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white">
+                        {uploading.trainer ? "Uploading..." : "Upload Image"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            handleTrainerImageUpload(e.target.files?.[0])
+                          }
+                          disabled={uploading.trainer}
+                          className="sr-only"
+                        />
+                      </label>
+                      {trainerForm.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setTrainerForm((prev) => ({
+                              ...prev,
+                              imageUrl: "",
+                            }))
+                          }
+                          className="text-sm font-semibold text-rose-600"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleAddTrainer}
+                      className="flex-1 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
+                    >
+                      {editingTrainerIndex !== null
+                        ? "Update Trainer"
+                        : "Add Trainer"}
+                    </button>
+                    {editingTrainerIndex !== null && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditTrainer}
+                        className="flex-1 rounded-lg bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-300"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Trainers List */}
+              <div>
+                <p className="text-sm font-semibold text-slate-900 mb-3">
+                  Trainers on Landing Page ({config.trainers.length})
+                </p>
+                {config.trainers.length > 0 ? (
+                  <div className="space-y-3">
+                    {config.trainers.map((trainer, index) => (
+                      <div
+                        key={trainer.id || index}
+                        className="flex items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4"
+                      >
+                        {trainer.imageUrl ? (
+                          <img
+                            src={trainer.imageUrl}
+                            alt={trainer.name}
+                            className="h-16 w-16 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-16 w-16 rounded-lg bg-slate-200 flex items-center justify-center text-xs text-slate-500">
+                            No image
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {trainer.name}
+                          </p>
+                          {trainer.specialty && (
+                            <p className="text-xs text-slate-600">
+                              {trainer.specialty}
+                            </p>
+                          )}
+                          {trainer.bio && (
+                            <p className="mt-1 text-xs text-slate-600 line-clamp-2">
+                              {trainer.bio}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditTrainer(index)}
+                            className="rounded-lg bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-200"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTrainer(index)}
+                            className="rounded-lg bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-200"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+                    <p className="text-sm text-slate-600">
+                      No trainers added yet. Add one above to display on your landing page.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

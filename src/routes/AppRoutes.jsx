@@ -62,10 +62,11 @@ const normalizeRouteRole = (rawRole) => {
 };
 
 const ProtectedRoute = ({ allowedRoles, requireTenant = true, children }) => {
-  const { isAuthenticated, loading, userRole, tenant } = useAuth();
+  const { isAuthenticated, loading, isTenantVerified, userRole, tenant } =
+    useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading || !isTenantVerified) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6 py-12">
         <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-lg shadow-slate-900/5">

@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isTenantVerified, setIsTenantVerified] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [tenant, setTenant] = useState(() =>
     detectTenantFromLocation(window.location),
@@ -38,6 +39,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setUserRole(null);
     setTenant(null);
+    setIsTenantVerified(false);
     setLoading(false);
 
     if (typeof window !== "undefined") {
@@ -135,6 +137,15 @@ export const AuthProvider = ({ children }) => {
       );
       if (profileTenant) {
         setTenant(profileTenant);
+        setIsTenantVerified(true);
+      } else if (fallbackTenant) {
+        // ✅ If we have a fallbackTenant from JWT but profile doesn't have tenant,
+        // still mark as verified since we've completed the async check
+        setIsTenantVerified(true);
+      } else {
+        // ✅ Mark as verified even if no tenant found, so error page can be shown
+        // instead of staying in infinite loading state
+        setIsTenantVerified(true);
       }
 
       setUser(profile);
@@ -156,6 +167,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setUserRole(null);
         setTenant(null);
+        setIsTenantVerified(true);
         setLoading(false);
         return;
       }
@@ -165,6 +177,7 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         debugError("AuthContext:init", "Failed to initialize auth", error);
         logout();
+        return;
       }
 
       setLoading(false);
@@ -306,6 +319,14 @@ export const AuthProvider = ({ children }) => {
         );
         if (profileTenant) {
           setTenant(profileTenant);
+          setIsTenantVerified(true);
+        } else if (loginTenant) {
+          // ✅ If we have loginTenant from JWT but profile doesn't have tenant,
+          // still mark as verified since we've completed the async check
+          setIsTenantVerified(true);
+        } else {
+          // ✅ Mark as verified even if no tenant found, so error page can be shown
+          setIsTenantVerified(true);
         }
 
         setUser(profile);
@@ -330,6 +351,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
         setUserRole(null);
         setTenant(null);
+        setIsTenantVerified(false);
         throw error;
       }
     },
@@ -341,6 +363,7 @@ export const AuthProvider = ({ children }) => {
       user,
       isAuthenticated,
       loading,
+      isTenantVerified,
       userRole,
       isAdmin: userRole === "super_admin",
       tenant,
@@ -376,6 +399,7 @@ export const AuthProvider = ({ children }) => {
             );
             if (profileTenant) {
               setTenant(profileTenant);
+              setIsTenantVerified(true);
             }
           }
           return profile;
@@ -384,7 +408,16 @@ export const AuthProvider = ({ children }) => {
         }
       },
     }),
-    [user, isAuthenticated, loading, userRole, tenant, login, logout],
+    [
+      user,
+      isAuthenticated,
+      loading,
+      isTenantVerified,
+      userRole,
+      tenant,
+      login,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

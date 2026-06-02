@@ -36,8 +36,6 @@ export default function GymLandingPage() {
   const [submittingLead, setSubmittingLead] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState(false);
   const [leadError, setLeadError] = useState("");
-  const [trainers, setTrainers] = useState([]);
-  const [trainersLoading, setTrainersLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,30 +73,6 @@ export default function GymLandingPage() {
     };
 
     loadLandingPage();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadTrainers = async () => {
-      const tenantSlug = getTenantSlugFromHost(window.location.hostname);
-      if (!tenantSlug) return;
-      setTrainersLoading(true);
-      try {
-        const resp = await api.get(`/landing/${tenantSlug}/trainers`);
-        if (!isMounted) return;
-        setTrainers(Array.isArray(resp?.data?.data) ? resp.data.data : []);
-      } catch (err) {
-        // ignore trainer load errors for now
-      } finally {
-        if (isMounted) setTrainersLoading(false);
-      }
-    };
-
-    loadTrainers();
 
     return () => {
       isMounted = false;
@@ -342,26 +316,17 @@ export default function GymLandingPage() {
         </div>
 
         <div className="mt-8">
-          {trainersLoading ? (
+          {config.trainers && config.trainers.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="animate-pulse rounded-xl bg-slate-100 h-64"
-                />
-              ))}
-            </div>
-          ) : trainers && trainers.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {trainers.map((trainer) => (
+              {config.trainers.map((trainer, index) => (
                 <article
-                  key={trainer._id}
+                  key={trainer.id || index}
                   className="group relative overflow-hidden rounded-2xl bg-slate-950/5 shadow-lg shadow-slate-900/5 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/20"
                 >
                   <div className="relative overflow-hidden">
                     <img
                       src={
-                        trainer.avatar ||
+                        trainer.imageUrl ||
                         "https://images.unsplash.com/photo-1544785349-c4a5301826fd?auto=format&fit=crop&w=800&q=60"
                       }
                       alt={trainer.name}
