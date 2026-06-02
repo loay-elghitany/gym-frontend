@@ -1,6 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
 
+const getSafeText = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+
+  if (typeof value.text === "string") {
+    return value.text.trim();
+  }
+  if (typeof value.note === "string") {
+    return value.note.trim();
+  }
+  if (typeof value.mealName === "string") {
+    return value.mealName.trim();
+  }
+  if (typeof value.foodName === "string") {
+    return value.foodName.trim();
+  }
+  if (typeof value.name === "string") {
+    return value.name.trim();
+  }
+  if (typeof value.item === "string") {
+    return value.item.trim();
+  }
+  return getSafeText(value.item);
+};
+
+const getDietNotesText = (dietNotes) => {
+  if (Array.isArray(dietNotes)) {
+    return dietNotes.map(getSafeText).filter(Boolean).join("; ");
+  }
+  return getSafeText(dietNotes);
+};
+
 export default function ActiveWorkoutSession() {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +120,11 @@ export default function ActiveWorkoutSession() {
     return Array.isArray(activeDay.exercises) ? activeDay.exercises : [];
   }, [plan, activeDayIndex]);
 
+  const dietNotesText = getDietNotesText(plan?.dietNotes);
+  const activeExerciseNotes = getSafeText(
+    activeExercise?.notes || activeExercise?.instruction,
+  );
+
   // Start rest timer
   const handleStartRest = () => {
     const recommendedRest = activeExercise?.restTime || 45;
@@ -134,7 +178,7 @@ export default function ActiveWorkoutSession() {
           sets: exercise.sets,
           reps: exercise.reps,
           weight: loggedWeights[`${activeDayIndex}-${idx}`] || null,
-          notes: exercise.notes,
+          notes: getSafeText(exercise.notes || exercise.instruction),
         })),
         completedAt: new Date().toISOString(),
       };
@@ -246,9 +290,7 @@ export default function ActiveWorkoutSession() {
       {/* Progress bar with exercise counter */}
       <div className="mb-8">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-950">
-            Progress
-          </span>
+          <span className="text-sm font-semibold text-slate-950">Progress</span>
           <span className="text-sm font-semibold text-sky-600">
             Exercise {currentExerciseIndex + 1} of {activeExercises.length}
           </span>
@@ -256,7 +298,9 @@ export default function ActiveWorkoutSession() {
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full bg-linear-to-r from-sky-500 to-sky-600 transition-all duration-300"
-            style={{ width: `${activeExercises.length > 0 ? ((currentExerciseIndex + 1) / activeExercises.length) * 100 : 0}%` }}
+            style={{
+              width: `${activeExercises.length > 0 ? ((currentExerciseIndex + 1) / activeExercises.length) * 100 : 0}%`,
+            }}
           />
         </div>
       </div>
@@ -283,9 +327,9 @@ export default function ActiveWorkoutSession() {
             </h3>
 
             {/* Trainer Notes */}
-            {activeExercise?.notes && (
+            {activeExerciseNotes && (
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                💡 {activeExercise.notes}
+                💡 {activeExerciseNotes}
               </p>
             )}
 
@@ -320,8 +364,9 @@ export default function ActiveWorkoutSession() {
                   step="0.5"
                   min="0"
                   value={
-                    loggedWeights[`${activeDayIndex}-${currentExerciseIndex}`] ||
-                    ""
+                    loggedWeights[
+                      `${activeDayIndex}-${currentExerciseIndex}`
+                    ] || ""
                   }
                   onChange={(e) => handleLogWeight(e.target.value)}
                   placeholder="0.0"
@@ -473,18 +518,20 @@ export default function ActiveWorkoutSession() {
 
       {completionError && (
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-semibold text-red-800">{completionError}</p>
+          <p className="text-sm font-semibold text-red-800">
+            {completionError}
+          </p>
         </div>
       )}
 
-      {plan.dietNotes?.length && (
+      {dietNotesText ? (
         <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
             🥗 Nutrition Tips
           </p>
-          <p className="mt-2 text-sm text-blue-900">{plan.dietNotes}</p>
+          <p className="mt-2 text-sm text-blue-900">{dietNotesText}</p>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

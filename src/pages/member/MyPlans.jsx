@@ -63,7 +63,11 @@ const normalizeFoodItem = (food) => {
   }
 
   let source = food;
-  if (typeof source === "object" && source.item && typeof source.item === "object") {
+  if (
+    typeof source === "object" &&
+    source.item &&
+    typeof source.item === "object"
+  ) {
     source = source.item;
   }
 
@@ -240,6 +244,38 @@ const getMacroSummary = (meals) => {
     }),
     { calories: 0, protein: 0, carbs: 0, fats: 0 },
   );
+};
+
+const getSafeText = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+
+  if (typeof value.text === "string") {
+    return value.text.trim();
+  }
+  if (typeof value.note === "string") {
+    return value.note.trim();
+  }
+  if (typeof value.instruction === "string") {
+    return value.instruction.trim();
+  }
+  if (typeof value.name === "string") {
+    return value.name.trim();
+  }
+  if (typeof value.title === "string") {
+    return value.title.trim();
+  }
+  if (typeof value.item === "string") {
+    return value.item.trim();
+  }
+  return getSafeText(value.item);
 };
 
 export default function MyPlans() {
@@ -700,8 +736,9 @@ export default function MyPlans() {
                         {activeExercises.map((exercise, index) => {
                           const key = `${plan._id}-${activeDayIndex}-${index}`;
                           const isCompleted = Boolean(completedExercises[key]);
-                          const note =
-                            exercise.notes || exercise.instruction || "";
+                          const note = getSafeText(
+                            exercise.notes || exercise.instruction,
+                          );
 
                           return (
                             <div
