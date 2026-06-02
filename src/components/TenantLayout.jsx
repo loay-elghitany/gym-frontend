@@ -9,6 +9,7 @@ const roleNavItems = {
     { label: "nav.dashboard", path: "owner", icon: "home" },
     { label: "nav.members", path: "members", icon: "users" },
     { label: "nav.subscriptions", path: "subscriptions", icon: "credit-card" },
+    { label: "Classes", path: "owner/classes", icon: "calendar" },
     { label: "nav.reports", path: "reports", icon: "chart" },
     { label: "Leads CRM", path: "owner/leads", icon: "sparkles" },
     { label: "nav.landingPage", path: "owner/landing-page", icon: "sparkles" },
@@ -28,6 +29,7 @@ const roleNavItems = {
   ],
   member: [
     { label: "nav.dashboard", path: "dashboard", icon: "home" },
+    { label: "My Classes", path: "my-classes", icon: "calendar" },
     { label: "nav.myPlans", path: "my-plans", icon: "clipboard" },
     { label: "Weekly Check-ins", path: "weekly-checkins", icon: "check" },
     { label: "nav.profile", path: "profile", icon: "user" },

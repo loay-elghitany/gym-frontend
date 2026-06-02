@@ -22,7 +22,9 @@ import Broadcasts from "../pages/super-admin/Broadcasts";
 import AuditLogs from "../pages/super-admin/AuditLogs";
 import TrainerDashboard from "../pages/trainer/TrainerDashboard";
 import TrainerClasses from "../pages/trainer/TrainerClasses";
+import MemberClasses from "../pages/member/MemberClasses";
 import InBodyRecords from "../pages/trainer/InBodyRecords";
+import GymOwnerClasses from "../pages/gym-owner/GymOwnerClasses";
 import WeeklyCheckIn from "../pages/member/WeeklyCheckIn";
 import LeadsCRM from "../pages/gym-owner/LeadsCRM";
 import QuickScanner from "../pages/owner/QuickScanner";
@@ -82,6 +84,14 @@ const ProtectedRoute = ({ allowedRoles, requireTenant = true, children }) => {
   const normalizedRole = normalizeRouteRole(userRole);
 
   if (requireTenant && normalizedRole !== "super_admin" && !tenant?.slug) {
+    <Route
+      path="/owner/classes"
+      element={
+        <ProtectedRoute allowedRoles={["gym_owner"]}>
+          <GymOwnerClasses />
+        </ProtectedRoute>
+      }
+    />;
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
@@ -305,6 +315,14 @@ export default function AppRoutes() {
             element={
               <ProtectedRoute allowedRoles={["member"]}>
                 <MemberProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-classes"
+            element={
+              <ProtectedRoute allowedRoles={["member"]}>
+                <MemberClasses />
               </ProtectedRoute>
             }
           />

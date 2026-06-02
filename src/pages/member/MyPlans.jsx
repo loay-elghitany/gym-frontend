@@ -57,43 +57,117 @@ const getBaseMultiplier = (baseUnit) => {
   return 1;
 };
 
-const normalizeMealForDisplay = (meal, fallbackName = "Meal") => {
-  const quantity = toNumber(meal.quantity);
-  const baseUnit = String(meal.baseUnit || "100g");
+const normalizeFoodItem = (food) => {
+  if (!food || typeof food !== "object") {
+    return null;
+  }
+
+  const foodName = String(food.foodName || food.name || food.item || "").trim();
+  if (!foodName) {
+    return null;
+  }
+
+  const quantity = toNumber(food.quantity);
+  const baseUnit = String(food.baseUnit || "100g");
   const multiplier = getBaseMultiplier(baseUnit);
-  const normalizedMeal = {
-    mealName: meal.mealName || meal.name || meal.item || fallbackName || "Meal",
+
+  return {
+    foodName,
     quantity,
     baseUnit,
     quantityLabel: quantity > 0 ? `${quantity} ${baseUnit}` : "Custom portion",
     calories:
-      meal.calories === null || meal.calories === undefined
+      food.calories === null || food.calories === undefined
+        ? 0
+        : toNumber(food.calories) * multiplier,
+    protein:
+      food.protein === null || food.protein === undefined
+        ? 0
+        : toNumber(food.protein) * multiplier,
+    carbs:
+      food.carbs === null || food.carbs === undefined
+        ? 0
+        : toNumber(food.carbs) * multiplier,
+    fats:
+      food.fats === null || food.fats === undefined
+        ? 0
+        : toNumber(food.fats) * multiplier,
+    hasNutritionData:
+      food.calories !== null &&
+      food.calories !== undefined &&
+      food.protein !== null &&
+      food.protein !== undefined,
+  };
+};
+
+const normalizeMealForDisplay = (meal, fallbackName = "Meal") => {
+  const mealName = String(
+    meal?.mealName || meal?.name || meal?.item || fallbackName || "Meal",
+  ).trim();
+
+  const foods = Array.isArray(meal?.foods)
+    ? meal.foods.map(normalizeFoodItem).filter(Boolean)
+    : [];
+
+  if (foods.length) {
+    const totals = foods.reduce(
+      (totals, food) => ({
+        calories: totals.calories + food.calories,
+        protein: totals.protein + food.protein,
+        carbs: totals.carbs + food.carbs,
+        fats: totals.fats + food.fats,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fats: 0 },
+    );
+
+    return {
+      mealName,
+      foods,
+      quantityLabel: `${foods.length} item${foods.length === 1 ? "" : "s"}`,
+      baseUnit: "custom",
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fats: totals.fats,
+      hasNutritionData: true,
+    };
+  }
+
+  const quantity = toNumber(meal?.quantity);
+  const baseUnit = String(meal?.baseUnit || "100g");
+  const multiplier = getBaseMultiplier(baseUnit);
+
+  return {
+    mealName,
+    quantity,
+    baseUnit,
+    quantityLabel: quantity > 0 ? `${quantity} ${baseUnit}` : "Custom portion",
+    calories:
+      meal?.calories === null || meal?.calories === undefined
         ? 0
         : toNumber(meal.calories) * multiplier,
     protein:
-      meal.protein === null || meal.protein === undefined
+      meal?.protein === null || meal?.protein === undefined
         ? 0
         : toNumber(meal.protein) * multiplier,
     carbs:
-      meal.carbs === null || meal.carbs === undefined
+      meal?.carbs === null || meal?.carbs === undefined
         ? 0
         : toNumber(meal.carbs) * multiplier,
     fats:
-      meal.fats === null || meal.fats === undefined
+      meal?.fats === null || meal?.fats === undefined
         ? 0
         : toNumber(meal.fats) * multiplier,
     hasNutritionData:
-      meal.calories !== null &&
-      meal.calories !== undefined &&
-      meal.protein !== null &&
-      meal.protein !== undefined,
+      meal?.calories !== null &&
+      meal?.calories !== undefined &&
+      meal?.protein !== null &&
+      meal?.protein !== undefined,
   };
-
-  return normalizedMeal;
 };
 
 const getPlanMeals = (plan) => {
-  if (Array.isArray(plan.meals) && plan.meals.length) {
+  if (Array.isArray(plan?.meals) && plan.meals.length) {
     return plan.meals.map((meal) => normalizeMealForDisplay(meal));
   }
 
@@ -732,7 +806,7 @@ export default function MyPlans() {
                   </div>
 
                   {planMeals.length ? (
-                    <div className="grid gap-3">
+                    <div className="space-y-4">
                       {planMeals.map((meal, index) => (
                         <div
                           key={`${plan._id}-${index}`}
@@ -783,6 +857,42 @@ export default function MyPlans() {
                               </span>
                             </div>
                           </div>
+
+                          {Array.isArray(meal.foods) && meal.foods.length ? (
+                            <div className="mt-4 space-y-3">
+                              {meal.foods.map((food, foodIndex) => (
+                                <div
+                                  key={`${plan._id}-${index}-food-${foodIndex}`}
+                                  className="rounded-3xl border border-slate-200 bg-white px-4 py-4"
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div>
+                                      <p className="text-sm font-semibold text-slate-950">
+                                        {food.foodName}
+                                      </p>
+                                      <p className="mt-1 text-sm text-slate-600">
+                                        {food.quantityLabel}
+                                      </p>
+                                    </div>
+                                    <div className="grid gap-2 text-xs text-slate-500 sm:grid-cols-4">
+                                      <div className="rounded-2xl bg-slate-100 px-2 py-2 text-slate-700">
+                                        {Math.round(food.calories)} kcal
+                                      </div>
+                                      <div className="rounded-2xl bg-slate-100 px-2 py-2 text-slate-700">
+                                        {Math.round(food.protein * 10) / 10} g P
+                                      </div>
+                                      <div className="rounded-2xl bg-slate-100 px-2 py-2 text-slate-700">
+                                        {Math.round(food.carbs * 10) / 10} g C
+                                      </div>
+                                      <div className="rounded-2xl bg-slate-100 px-2 py-2 text-slate-700">
+                                        {Math.round(food.fats * 10) / 10} g F
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>

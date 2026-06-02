@@ -40,7 +40,40 @@ export default function SmartTemplatesBuilder() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [messageTone, setMessageTone] = useState("neutral");
+  const [toastMessage, setToastMessage] = useState(null);
+  const [toastTone, setToastTone] = useState("success");
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
   const [assignments] = useState([]);
+
+  const formatTemplateDate = (dateString) => {
+    if (!dateString) return "Saved";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "Saved";
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const populateFormFromTemplate = (template) => {
+    setTemplateName(template.templateName || "");
+    setTemplateDays(
+      Array.isArray(template.days) && template.days.length
+        ? template.days
+        : [{ dayName: "Day 1", exercises: [{ ...emptyExercise }] }],
+    );
+    setDietMeals(
+      Array.isArray(template.meals) && template.meals.length
+        ? template.meals
+        : [emptyMeal],
+    );
+    setExpandedDay(0);
+    setMessage(null);
+    setMessageTone("neutral");
+    setSaving(false);
+    setEditingTemplateId(template._id);
+  };
 
   const loadTemplates = async () => {
     setLoading(true);
@@ -60,6 +93,16 @@ export default function SmartTemplatesBuilder() {
     loadTemplates();
   }, []);
 
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
   const openModal = () => setModalOpen(true);
   const closeModal = () => {
     setModalOpen(false);
@@ -70,6 +113,128 @@ export default function SmartTemplatesBuilder() {
     setSaving(false);
     setMessage(null);
     setMessageTone("neutral");
+    setEditingTemplateId(null);
+  };
+
+  const handleDeleteTemplate = async (templateId) => {
+    const confirmed = window.confirm(
+      "Delete this template? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/trainer/templates/${templateId}`);
+      setTemplates((current) =>
+        current.filter((template) => template._id !== templateId),
+      );
+      setToastMessage("Template deleted successfully.");
+      setToastTone("success");
+    } catch (error) {
+      console.error("Unable to delete template", error);
+      window.alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to delete template.",
+      );
+    }
+  };
+
+  const handleEditTemplate = (template) => {
+    populateFormFromTemplate(template);
+    setModalOpen(true);
+  };
+
+  const handleSaveTemplate = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage(null);
+    setMessageTone("neutral");
+
+    if (!templateName.trim()) {
+      setMessage("Template name is required");
+      setMessageTone("error");
+      setSaving(false);
+      return;
+    }
+
+    const cleanedDays = templateDays
+      .map((day, dayIndex) => ({
+        dayName: day.dayName.trim() || `Day ${dayIndex + 1}`,
+        exercises: day.exercises
+          .filter((exercise) => exercise.name.trim())
+          .map((exercise) => ({
+            name: exercise.name.trim(),
+            sets: exercise.sets ? Number(exercise.sets) : 0,
+            reps: exercise.reps.trim(),
+            notes: exercise.notes.trim(),
+            gifUrl: exercise.gifUrl?.trim() || "",
+          })),
+      }))
+      .filter((day) => day.exercises.length);
+
+    const payload = {
+      templateName: templateName.trim(),
+      days: cleanedDays.length
+        ? cleanedDays
+        : [
+            {
+              dayName: "Day 1",
+              exercises: [
+                { name: "", sets: 0, reps: "", notes: "", gifUrl: "" },
+              ],
+            },
+          ],
+      meals: dietMeals
+        .filter((meal) => meal.mealName.trim())
+        .map((meal) => ({
+          mealName: meal.mealName.trim(),
+          foods: (meal.foods || [])
+            .filter((food) => String(food.foodName || "").trim())
+            .map((food) => ({
+              foodName: String(food.foodName || "").trim(),
+              quantity: Number(food.quantity) || 0,
+              calories:
+                food.calories === null ? null : Number(food.calories) || 0,
+              protein: food.protein === null ? null : Number(food.protein) || 0,
+              carbs: food.carbs === null ? null : Number(food.carbs) || 0,
+              fats: food.fats === null ? null : Number(food.fats) || 0,
+              baseUnit: food.baseUnit || "100g",
+            })),
+        })),
+    };
+
+    try {
+      if (editingTemplateId) {
+        await api.put(`/trainer/templates/${editingTemplateId}`, payload);
+      } else {
+        await api.post("/trainer/templates", payload);
+      }
+
+      setToastMessage(
+        editingTemplateId
+          ? "Template updated successfully."
+          : "Template saved successfully.",
+      );
+      setToastTone("success");
+      closeModal();
+      await loadTemplates();
+    } catch (error) {
+      console.error(
+        editingTemplateId
+          ? "Unable to update trainer template"
+          : "Unable to create trainer template",
+        error,
+      );
+      setMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          (editingTemplateId
+            ? "Unable to update template"
+            : "Unable to save template"),
+      );
+      setMessageTone("error");
+      setSaving(false);
+    }
   };
 
   useBodyScrollLock(modalOpen);
@@ -315,83 +480,6 @@ export default function SmartTemplatesBuilder() {
     );
   }, [dietMeals]);
 
-  const handleCreateTemplate = async (event) => {
-    event.preventDefault();
-    setSaving(true);
-    setMessage(null);
-    setMessageTone("neutral");
-
-    if (!templateName.trim()) {
-      setMessage("Template name is required");
-      setMessageTone("error");
-      setSaving(false);
-      return;
-    }
-
-    const cleanedDays = templateDays
-      .map((day, dayIndex) => ({
-        dayName: day.dayName.trim() || `Day ${dayIndex + 1}`,
-        exercises: day.exercises
-          .filter((exercise) => exercise.name.trim())
-          .map((exercise) => ({
-            name: exercise.name.trim(),
-            sets: exercise.sets ? Number(exercise.sets) : 0,
-            reps: exercise.reps.trim(),
-            notes: exercise.notes.trim(),
-            gifUrl: exercise.gifUrl?.trim() || "",
-          })),
-      }))
-      .filter((day) => day.exercises.length);
-
-    const payload = {
-      templateName: templateName.trim(),
-      days: cleanedDays.length
-        ? cleanedDays
-        : [
-            {
-              dayName: "Day 1",
-              exercises: [
-                { name: "", sets: 0, reps: "", notes: "", gifUrl: "" },
-              ],
-            },
-          ],
-      meals: dietMeals
-        .filter((meal) => meal.mealName.trim())
-        .map((meal) => ({
-          mealName: meal.mealName.trim(),
-          foods: (meal.foods || [])
-            .filter((food) => String(food.foodName || "").trim())
-            .map((food) => ({
-              foodName: String(food.foodName || "").trim(),
-              quantity: Number(food.quantity) || 0,
-              calories:
-                food.calories === null ? null : Number(food.calories) || 0,
-              protein: food.protein === null ? null : Number(food.protein) || 0,
-              carbs: food.carbs === null ? null : Number(food.carbs) || 0,
-              fats: food.fats === null ? null : Number(food.fats) || 0,
-              baseUnit: food.baseUnit || "100g",
-            })),
-        })),
-    };
-
-    try {
-      await api.post("/trainer/templates", payload);
-      setMessage("Template saved successfully.");
-      setMessageTone("success");
-      closeModal();
-      await loadTemplates();
-    } catch (error) {
-      console.error("Unable to create trainer template", error);
-      setMessage(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Unable to save template",
-      );
-      setMessageTone("error");
-      setSaving(false);
-    }
-  };
-
   return (
     <section className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -416,6 +504,27 @@ export default function SmartTemplatesBuilder() {
           Create new template
         </button>
       </div>
+
+      {toastMessage ? (
+        <div
+          className={`mt-6 rounded-3xl border px-4 py-3 text-sm ${
+            toastTone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <p>{toastMessage}</p>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-4 rounded-4xl border border-slate-200 bg-slate-50 p-6">
@@ -446,11 +555,25 @@ export default function SmartTemplatesBuilder() {
                         })()}
                       </p>
                     </div>
-                    <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-900">
-                      {template.createdAt
-                        ? new Date(template.createdAt).toLocaleDateString()
-                        : "Saved"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleEditTemplate(template)}
+                        className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTemplate(template._id)}
+                        className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        🗑️ Delete
+                      </button>
+                      <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-900">
+                        {formatTemplateDate(template.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -517,7 +640,7 @@ export default function SmartTemplatesBuilder() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-xl font-semibold text-slate-950">
-                  Create new template
+                  {editingTemplateId ? "Edit template" : "Create new template"}
                 </h3>
                 <p className="mt-1 text-sm text-slate-600">
                   Add the template name, exercises, and diet notes to save it
@@ -533,7 +656,7 @@ export default function SmartTemplatesBuilder() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateTemplate} className="mt-6 space-y-6">
+            <form onSubmit={handleSaveTemplate} className="mt-6 space-y-6">
               {message ? (
                 <div
                   className={`rounded-3xl border px-4 py-3 text-sm ${
@@ -991,7 +1114,11 @@ export default function SmartTemplatesBuilder() {
                   disabled={saving}
                   className="rounded-3xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Saving..." : "Save template"}
+                  {saving
+                    ? "Saving..."
+                    : editingTemplateId
+                      ? "Update template"
+                      : "Save template"}
                 </button>
               </div>
             </form>
