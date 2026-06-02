@@ -768,34 +768,30 @@ export default function SmartTemplatesBuilder() {
                   </button>
                 </div>
 
-                <div className="grid gap-3">
+                <div className="space-y-4">
                   {dietMeals.map((meal, mealIndex) => {
                     const mealTotals = getMealTotals(meal);
-                    const hasFoodData = meal.foods.some((food) =>
-                      String(food.foodName || "").trim(),
-                    );
 
                     return (
                       <div
                         key={mealIndex}
-                        className="rounded-3xl bg-white p-4 shadow-sm"
+                        className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm"
                       >
-                        <div className="grid gap-3 xl:grid-cols-[1.2fr_auto] xl:items-start">
-                          <div className="w-full">
-                            <label className="sr-only">Meal name</label>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex-1 min-w-0">
                             <input
                               value={meal.mealName}
                               onChange={(event) =>
                                 updateMealName(mealIndex, event.target.value)
                               }
                               className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                              placeholder="Meal name (e.g., Breakfast)"
+                              placeholder={`Meal ${mealIndex + 1}: Breakfast`}
                             />
                           </div>
 
                           <button
-                            onClick={() => removeMeal(mealIndex)}
                             type="button"
+                            onClick={() => removeMeal(mealIndex)}
                             className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
                           >
                             Remove meal
@@ -803,166 +799,132 @@ export default function SmartTemplatesBuilder() {
                         </div>
 
                         <div className="mt-4 space-y-3">
-                          {meal.foods.map((food, foodIndex) => (
-                            <div
-                              key={`${mealIndex}-${foodIndex}`}
-                              className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm xl:grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] xl:items-end"
-                            >
-                              <div className="w-full">
-                                <FoodAutocomplete
-                                  value={food.foodName}
-                                  onValueChange={(nextValue) =>
-                                    updateFoodItem(
-                                      mealIndex,
-                                      foodIndex,
-                                      "foodName",
-                                      nextValue,
-                                    )
-                                  }
-                                  onSelect={(selectedFood) =>
-                                    selectFood(
-                                      mealIndex,
-                                      foodIndex,
-                                      selectedFood,
-                                    )
-                                  }
-                                  placeholder="Search food or type custom"
-                                />
-                              </div>
+                          {meal.foods.map((food, foodIndex) => {
+                            const calculatedFood = getCalculatedFoodItem(food);
+                            const hasFoodData = Boolean(
+                              String(food.foodName || "").trim(),
+                            );
 
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                value={food.quantity}
-                                onChange={(event) =>
-                                  updateFoodItem(
-                                    mealIndex,
-                                    foodIndex,
-                                    "quantity",
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Qty"
-                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
-                              />
-
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={
-                                  food.calories === null ? "" : food.calories
-                                }
-                                onChange={(event) =>
-                                  updateFoodItem(
-                                    mealIndex,
-                                    foodIndex,
-                                    "calories",
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Calories"
-                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
-                              />
-
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={
-                                  food.protein === null ? "" : food.protein
-                                }
-                                onChange={(event) =>
-                                  updateFoodItem(
-                                    mealIndex,
-                                    foodIndex,
-                                    "protein",
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Protein"
-                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
-                              />
-
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={food.carbs === null ? "" : food.carbs}
-                                onChange={(event) =>
-                                  updateFoodItem(
-                                    mealIndex,
-                                    foodIndex,
-                                    "carbs",
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Carbs"
-                                className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
-                              />
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeFoodFromMeal(mealIndex, foodIndex)
-                                }
-                                className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                            return (
+                              <div
+                                key={`${mealIndex}-${foodIndex}`}
+                                className="grid gap-3 sm:grid-cols-[1fr_96px_140px_auto]"
                               >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
+                                <div className="min-w-0">
+                                  <FoodAutocomplete
+                                    value={food.foodName}
+                                    onValueChange={(nextValue) =>
+                                      updateFoodItem(
+                                        mealIndex,
+                                        foodIndex,
+                                        "foodName",
+                                        nextValue,
+                                      )
+                                    }
+                                    onSelect={(selectedFood) =>
+                                      selectFood(
+                                        mealIndex,
+                                        foodIndex,
+                                        selectedFood,
+                                      )
+                                    }
+                                    placeholder="Search food or type custom"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                    Qty
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    value={food.quantity}
+                                    onChange={(event) =>
+                                      updateFoodItem(
+                                        mealIndex,
+                                        foodIndex,
+                                        "quantity",
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                                    placeholder="100"
+                                  />
+                                </div>
+
+                                <div className="rounded-3xl border border-slate-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+                                  <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-700">
+                                    Food macros
+                                  </p>
+                                  <p className="mt-2 font-semibold">
+                                    {hasFoodData
+                                      ? `${Math.round(calculatedFood.calories || 0)} kcal • ${Math.round((calculatedFood.protein || 0) * 10) / 10}g P`
+                                      : "No food selected"}
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeFoodFromMeal(mealIndex, foodIndex)
+                                  }
+                                  className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => addFoodToMeal(mealIndex)}
-                          className="mt-4 rounded-3xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 border border-slate-200 hover:bg-slate-50"
-                        >
-                          + Add food item
-                        </button>
-
-                        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                              Calories
+                        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <button
+                            type="button"
+                            onClick={() => addFoodToMeal(mealIndex)}
+                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                          >
+                            Add Food Item
+                          </button>
+                          <div className="rounded-3xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                              Meal subtotal
                             </p>
-                            <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasFoodData
-                                ? `${Math.round(mealTotals.calories || 0)} kcal`
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                              Protein
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasFoodData
-                                ? `${Math.round((mealTotals.protein || 0) * 10) / 10} g`
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                              Carbs
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasFoodData
-                                ? `${Math.round((mealTotals.carbs || 0) * 10) / 10} g`
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                              Fats
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {hasFoodData
-                                ? `${Math.round((mealTotals.fats || 0) * 10) / 10} g`
-                                : "N/A"}
-                            </p>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                              <div className="rounded-2xl bg-white px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                                  kcal
+                                </p>
+                                <p className="mt-1 font-semibold">
+                                  {Math.round(mealTotals.calories)}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-white px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                                  protein
+                                </p>
+                                <p className="mt-1 font-semibold">
+                                  {Math.round(mealTotals.protein * 10) / 10} g
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-white px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                                  carbs
+                                </p>
+                                <p className="mt-1 font-semibold">
+                                  {Math.round(mealTotals.carbs * 10) / 10} g
+                                </p>
+                              </div>
+                              <div className="rounded-2xl bg-white px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                                  fats
+                                </p>
+                                <p className="mt-1 font-semibold">
+                                  {Math.round(mealTotals.fats * 10) / 10} g
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
