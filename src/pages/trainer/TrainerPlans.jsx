@@ -382,14 +382,12 @@ export default function TrainerPlans() {
     setTitle(template.templateName || "");
     setPlanDays(buildDaysFromTemplate(template));
     setExpandedDay(0);
-    setMeals(
-      Array.isArray(template.meals) && template.meals.length
-        ? template.meals.map((meal) => ({
-            mealName: meal.mealName || meal.item || "",
-            foods: [{ ...emptyFoodItem }],
-          }))
-        : [emptyMeal],
-    );
+
+    const templateMeals = Array.isArray(template.meals)
+      ? JSON.parse(JSON.stringify(template.meals))
+      : [];
+
+    setMeals(templateMeals.length ? templateMeals : [emptyMeal]);
   };
 
   const openTemplateModal = () => {
