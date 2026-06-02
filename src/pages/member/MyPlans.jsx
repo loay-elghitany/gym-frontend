@@ -58,17 +58,32 @@ const getBaseMultiplier = (baseUnit) => {
 };
 
 const normalizeFoodItem = (food) => {
-  if (!food || typeof food !== "object") {
+  if (!food) {
     return null;
   }
 
-  const foodName = String(food.foodName || food.name || food.item || "").trim();
+  let source = food;
+  if (typeof source === "object" && source.item && typeof source.item === "object") {
+    source = source.item;
+  }
+
+  if (typeof source === "string") {
+    source = { foodName: source };
+  }
+
+  if (typeof source !== "object") {
+    return null;
+  }
+
+  const foodName = String(
+    source.foodName || source.name || source.item || source.label || "",
+  ).trim();
   if (!foodName) {
     return null;
   }
 
-  const quantity = toNumber(food.quantity);
-  const baseUnit = String(food.baseUnit || "100g");
+  const quantity = toNumber(source.quantity);
+  const baseUnit = String(source.baseUnit || "100g");
   const multiplier = getBaseMultiplier(baseUnit);
 
   return {
@@ -105,9 +120,15 @@ const normalizeMealForDisplay = (meal, fallbackName = "Meal") => {
     meal?.mealName || meal?.name || meal?.item || fallbackName || "Meal",
   ).trim();
 
-  const foods = Array.isArray(meal?.foods)
-    ? meal.foods.map(normalizeFoodItem).filter(Boolean)
-    : [];
+  const rawFoods = Array.isArray(meal?.foods)
+    ? meal.foods
+    : Array.isArray(meal?.alternatives)
+      ? meal.alternatives
+      : Array.isArray(meal?.item?.alternatives)
+        ? meal.item.alternatives
+        : [];
+
+  const foods = rawFoods.map(normalizeFoodItem).filter(Boolean);
 
   if (foods.length) {
     const totals = foods.reduce(
@@ -189,17 +210,22 @@ const getPlanMeals = (plan) => {
       );
     }
 
+    const mealName = String(
+      note?.mealName || note?.item || `Meal ${index + 1}`,
+    ).trim();
+
     return normalizeMealForDisplay(
       {
-        mealName: note?.item || note?.mealName || `Meal ${index + 1}`,
+        mealName,
         quantity: note?.quantity || 0,
         baseUnit: note?.baseUnit || "100g",
         calories: note?.calories,
         protein: note?.protein,
         carbs: note?.carbs,
         fats: note?.fats,
+        foods: note?.alternatives || note?.foods || [],
       },
-      note?.item || note?.mealName || `Meal ${index + 1}`,
+      mealName,
     );
   });
 };
