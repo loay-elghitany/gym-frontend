@@ -118,6 +118,36 @@ export default function InBodyRecords() {
     loadProgress();
   }, [selectedMemberId, activeTab]);
 
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setLoadingMembers(true);
+      try {
+        const res = await api.get("/users");
+        const data = res?.data?.data?.users || res?.data?.users || [];
+        setMembers(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load members:", err);
+        setMembers([]);
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+    fetchMembers();
+  }, []);
+
+  const memberOptions = useMemo(() => {
+    return members
+      .filter((member) => member.role === "member")
+      .filter((member) => {
+        const query = memberSearch.trim().toLowerCase();
+        if (!query) return true;
+        return (
+          member.name?.toLowerCase().includes(query) ||
+          member.email?.toLowerCase().includes(query)
+        );
+      });
+  }, [members, memberSearch]);
+
   const selectedMember = useMemo(
     () => members.find((member) => member._id === selectedMemberId) || null,
     [members, selectedMemberId],
