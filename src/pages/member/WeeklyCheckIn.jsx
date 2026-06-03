@@ -9,8 +9,8 @@ export default function WeeklyCheckIn() {
 
   // ============ ALL HOOKS AT TOP ============
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState("checkin");
+  // Wizard step state (1 = Metrics, 2 = Photos, 3 = InBody)
+  const [currentStep, setCurrentStep] = useState(1);
 
   // Weekly check-in state
   const [formData, setFormData] = useState({
@@ -54,24 +54,12 @@ export default function WeeklyCheckIn() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteKind, setDeleteKind] = useState(null); // 'photo' or 'inbody'
 
-  // Fetch check-ins
+  // Load user's data on mount
   useEffect(() => {
     fetchMyCheckIns();
+    fetchProgressPhotos();
+    fetchInBodyRecords();
   }, []);
-
-  // Fetch progress photos when tab is active
-  useEffect(() => {
-    if (activeTab === "photos") {
-      fetchProgressPhotos();
-    }
-  }, [activeTab]);
-
-  // Fetch InBody records when tab is active
-  useEffect(() => {
-    if (activeTab === "inbody") {
-      fetchInBodyRecords();
-    }
-  }, [activeTab]);
 
   // ============ CHECK-IN FUNCTIONS ============
 
@@ -86,30 +74,93 @@ export default function WeeklyCheckIn() {
     }
   };
 
-  const handleCheckInSubmit = async (e) => {
-    e.preventDefault();
+  // New unified submit: uploads images, composes payload, sends single POST
+  const handleSubmitAll = async (e) => {
+    e?.preventDefault?.();
     setLoading(true);
     setError("");
     setSuccess(false);
 
     try {
+      // 1) Upload any selected photo files and inBody file
+      const photoUploads = [];
+      // progressPhotosToUpload is an array of { file, preview, viewType }
+      if (progressPhotosToUpload && progressPhotosToUpload.length) {
+        for (const p of progressPhotosToUpload) {
+          if (p.file) {
+            const url = await uploadToCloudinary(p.file);
+            photoUploads.push({ url, viewType: p.viewType || "front" });
+          } else if (p.preview) {
+            // preview may be a data URL: upload not possible, skip
+            photoUploads.push({
+              url: p.preview,
+              viewType: p.viewType || "front",
+            });
+          }
+        }
+      }
+
+      let inBodyFileUrl = inBodyFormData.fileUrl || null;
+      if (inBodyFile) {
+        inBodyFileUrl = await uploadToCloudinary(inBodyFile);
+      }
+
+      // 2) Compose unified payload
       const payload = {
-        ...formData,
-        currentWeight: Number(formData.currentWeight),
-        fatigueLevel: Number(formData.fatigueLevel),
+        currentWeight: formData.currentWeight
+          ? Number(formData.currentWeight)
+          : undefined,
+        fatigueLevel: formData.fatigueLevel
+          ? Number(formData.fatigueLevel)
+          : undefined,
+        notes: formData.notes || undefined,
+        photos: photoUploads.map((p) => ({ url: p.url, viewType: p.viewType })),
+        inBody: inBodyFormData.weight
+          ? {
+              weight: Number(inBodyFormData.weight),
+              fatPercentage: inBodyFormData.fatPercentage
+                ? Number(inBodyFormData.fatPercentage)
+                : undefined,
+              muscleMass: inBodyFormData.muscleMass
+                ? Number(inBodyFormData.muscleMass)
+                : undefined,
+              fileUrl: inBodyFileUrl,
+            }
+          : undefined,
       };
       if (user?.trainerId) payload.trainerId = user.trainerId;
+
+      // 3) Send single POST
       await api.post("/trainee/checkin", payload);
+
       setSuccess(true);
+      // reset wizard state and refresh member progress
+      setCurrentStep(1);
       setFormData({
         currentWeight: "",
         fatigueLevel: 5,
         notes: "",
         photos: [],
       });
-      fetchMyCheckIns();
+      setProgressPhotosToUpload([]);
+      setInBodyFormData({
+        weight: "",
+        fatPercentage: "",
+        muscleMass: "",
+        fileUrl: "",
+      });
+      setInBodyFile(null);
+      setInBodyPreview(null);
+      await fetchMyCheckIns();
+      await fetchProgressPhotos();
+      await fetchInBodyRecords();
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to submit check-in");
+      console.error(err);
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to submit check-in",
+      );
     } finally {
       setLoading(false);
     }
@@ -159,6 +210,29 @@ export default function WeeklyCheckIn() {
       setPhotoPreview(preview);
       setPhotoFile(file);
     }
+  };
+
+  // Queue for photos to be uploaded with the unified submit
+  const [progressPhotosToUpload, setProgressPhotosToUpload] = useState([]);
+
+  const handleAddPhotoToQueue = (file) => {
+    if (!file) return;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const preview = URL.createObjectURL(file);
+    setProgressPhotosToUpload((cur) => [
+      ...cur,
+      { id, file, preview, viewType: "front" },
+    ]);
+  };
+
+  const updateQueuedPhotoViewType = (id, viewType) => {
+    setProgressPhotosToUpload((cur) =>
+      cur.map((p) => (p.id === id ? { ...p, viewType } : p)),
+    );
+  };
+
+  const handleRemoveQueuedPhoto = (id) => {
+    setProgressPhotosToUpload((cur) => cur.filter((p) => p.id !== id));
   };
 
   const handleUploadProgressPhoto = async () => {
@@ -221,7 +295,9 @@ export default function WeeklyCheckIn() {
 
     if (kind === "inbody") {
       const prev = inBodyRecords;
-      setInBodyRecords((cur) => cur.filter((r) => String(r._id) !== String(target)));
+      setInBodyRecords((cur) =>
+        cur.filter((r) => String(r._id) !== String(target)),
+      );
       try {
         await api.delete(`/member/inbody-records/${target}`);
       } catch (err) {
@@ -314,131 +390,352 @@ export default function WeeklyCheckIn() {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
-        <button
-          onClick={() => setActiveTab("checkin")}
-          className={`px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "checkin"
-              ? "border-b-2 border-slate-950 text-slate-950"
-              : "text-slate-600 hover:text-slate-950"
-          }`}
-        >
-          📋 Weekly Check-in
-        </button>
-        <button
-          onClick={() => setActiveTab("photos")}
-          className={`px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "photos"
-              ? "border-b-2 border-slate-950 text-slate-950"
-              : "text-slate-600 hover:text-slate-950"
-          }`}
-        >
-          📸 Progress Photos
-        </button>
-        <button
-          onClick={() => setActiveTab("inbody")}
-          className={`px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "inbody"
-              ? "border-b-2 border-slate-950 text-slate-950"
-              : "text-slate-600 hover:text-slate-950"
-          }`}
-        >
-          📊 InBody Scans
-        </button>
-      </div>
-
-      {/* Weekly Check-in Tab */}
-      {activeTab === "checkin" && (
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* Check-in Form */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Submit This Week's Check-in
-            </h2>
-            <form onSubmit={handleCheckInSubmit} className="mt-6 space-y-6">
+      {/* Unified 3-step Wizard */}
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Current Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={formData.currentWeight}
-                  onChange={(e) =>
-                    setFormData({ ...formData, currentWeight: e.target.value })
-                  }
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                  placeholder="75.5"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Fatigue Level (1-10)
-                </label>
-                <div className="mt-2 flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={formData.fatigueLevel}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        fatigueLevel: e.target.value,
-                      })
-                    }
-                    className="flex-1"
-                  />
-                  <span className="text-2xl font-semibold text-slate-900">
-                    {formData.fatigueLevel}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  1 = Very Fresh, 10 = Extremely Exhausted
+                <h2 className="text-lg font-semibold text-slate-950">
+                  Weekly Check-in Wizard
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Complete the three steps and submit once.
                 </p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Notes for Trainer
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, notes: e.target.value })
-                  }
-                  rows={4}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                  placeholder="How are you feeling? Any challenges or achievements?"
-                />
+              <div className="flex items-center gap-2">
+                <div
+                  className={`px-3 py-2 rounded-full text-sm font-semibold ${currentStep === 1 ? "bg-sky-500 text-slate-950" : "bg-slate-50 text-slate-600"}`}
+                >
+                  1
+                </div>
+                <div
+                  className={`px-3 py-2 rounded-full text-sm font-semibold ${currentStep === 2 ? "bg-sky-500 text-slate-950" : "bg-slate-50 text-slate-600"}`}
+                >
+                  2
+                </div>
+                <div
+                  className={`px-3 py-2 rounded-full text-sm font-semibold ${currentStep === 3 ? "bg-sky-500 text-slate-950" : "bg-slate-50 text-slate-600"}`}
+                >
+                  3
+                </div>
               </div>
+            </div>
 
-              {error && (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {error}
+            <div className="mt-6">
+              {/* Step 1: Metrics */}
+              {currentStep === 1 && (
+                <form className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Current Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.currentWeight}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          currentWeight: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none focus:border-sky-500"
+                      placeholder="75.5"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Fatigue Level (1-10)
+                    </label>
+                    <div className="mt-2 flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={formData.fatigueLevel}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            fatigueLevel: e.target.value,
+                          })
+                        }
+                        className="flex-1"
+                      />
+                      <span className="text-2xl font-semibold text-slate-900">
+                        {formData.fatigueLevel}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      1 = Very Fresh, 10 = Extremely Exhausted
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Notes for Trainer
+                    </label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
+                      rows={4}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none focus:border-sky-500"
+                      placeholder="How are you feeling? Any challenges or achievements?"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="rounded-3xl bg-sky-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400"
+                    >
+                      Next: Photos
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Step 2: Photos */}
+              {currentStep === 2 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Upload Progress Photos
+                    </label>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Drag & drop or click to add multiple photos. Local
+                      previews shown instantly.
+                    </p>
+                  </div>
+
+                  <div
+                    onDragEnter={handlePhotoDrag}
+                    onDragLeave={handlePhotoDrag}
+                    onDragOver={handlePhotoDrag}
+                    onDrop={(e) => {
+                      handlePhotoDrop(e);
+                      if (e.dataTransfer.files?.[0])
+                        handleAddPhotoToQueue(e.dataTransfer.files[0]);
+                    }}
+                    className={`relative rounded-3xl border-2 border-dashed px-4 py-10 text-center transition ${dragActive ? "border-sky-500 bg-sky-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
+                  >
+                    <p className="text-4xl">📸</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      Drop photos here or click to select
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        Array.from(e.target.files || []).forEach((f) =>
+                          handleAddPhotoToQueue(f),
+                        );
+                      }}
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {progressPhotosToUpload && progressPhotosToUpload.length ? (
+                      progressPhotosToUpload.map((p) => (
+                        <div
+                          key={p.id}
+                          className="relative overflow-hidden rounded-2xl bg-slate-50"
+                        >
+                          <div className="aspect-square overflow-hidden">
+                            <img
+                              src={p.preview}
+                              alt="preview"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="p-2">
+                            <select
+                              value={p.viewType}
+                              onChange={(e) =>
+                                updateQueuedPhotoViewType(p.id, e.target.value)
+                              }
+                              className="mt-2 w-full rounded-xl border border-slate-200 px-2 py-1 text-sm"
+                            >
+                              <option value="front">Front</option>
+                              <option value="back">Back</option>
+                              <option value="side">Side</option>
+                              <option value="other">Other</option>
+                            </select>
+                            <button
+                              onClick={() => handleRemoveQueuedPhoto(p.id)}
+                              className="mt-2 w-full rounded-lg bg-rose-500 px-2 py-1 text-xs font-semibold text-white"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-500">
+                        No new photos selected
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(1)}
+                      className="rounded-3xl border border-slate-200 px-5 py-2 text-sm font-semibold"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(3)}
+                      className="rounded-3xl bg-sky-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400"
+                    >
+                      Next: InBody
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {success && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  ✓ Check-in submitted successfully!
-                </div>
-              )}
+              {/* Step 3: InBody */}
+              {currentStep === 3 && (
+                <form className="space-y-6" onSubmit={handleSubmitAll}>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">
+                        Weight (kg)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={inBodyFormData.weight}
+                        onChange={(e) =>
+                          setInBodyFormData({
+                            ...inBodyFormData,
+                            weight: e.target.value,
+                          })
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900"
+                        placeholder="75.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">
+                        Fat % (optional)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={inBodyFormData.fatPercentage}
+                        onChange={(e) =>
+                          setInBodyFormData({
+                            ...inBodyFormData,
+                            fatPercentage: e.target.value,
+                          })
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900"
+                        placeholder="25.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">
+                        Muscle Mass (kg)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={inBodyFormData.muscleMass}
+                        onChange={(e) =>
+                          setInBodyFormData({
+                            ...inBodyFormData,
+                            muscleMass: e.target.value,
+                          })
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900"
+                        placeholder="55.0"
+                      />
+                    </div>
+                  </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {loading ? "Submitting..." : "Submit Check-in"}
-              </button>
-            </form>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Upload Scan Image (optional)
+                    </label>
+                    <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      {inBodyPreview ? (
+                        <div className="space-y-3">
+                          <div className="relative aspect-video max-w-xs overflow-hidden rounded-lg">
+                            <img
+                              src={inBodyPreview}
+                              alt="InBody Preview"
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInBodyPreview(null);
+                              setInBodyFile(null);
+                            }}
+                            className="text-sm font-medium text-sky-600"
+                          >
+                            Change image
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            handleInBodyFileChange(e);
+                          }}
+                          className="w-full"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      ✓ Check-in submitted successfully!
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="rounded-3xl border border-slate-200 px-5 py-2 text-sm font-semibold"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="rounded-3xl bg-sky-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400"
+                    >
+                      {loading ? "Submitting..." : "Submit All"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
 
           {/* Check-in History */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">
               Your Check-in History
             </h2>
@@ -461,11 +758,7 @@ export default function WeeklyCheckIn() {
                         </p>
                       </div>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          checkIn.trainerFeedback
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${checkIn.trainerFeedback ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
                       >
                         {checkIn.trainerFeedback ? "Reviewed" : "Pending"}
                       </span>
@@ -484,24 +777,6 @@ export default function WeeklyCheckIn() {
                         </p>
                       </div>
                     </div>
-                    {checkIn.notes && (
-                      <div className="mt-3">
-                        <p className="text-xs text-slate-500">Notes</p>
-                        <p className="text-sm text-slate-700">
-                          {checkIn.notes}
-                        </p>
-                      </div>
-                    )}
-                    {checkIn.trainerFeedback && (
-                      <div className="mt-3 rounded-2xl bg-emerald-50 p-3">
-                        <p className="text-xs font-semibold text-emerald-700">
-                          Trainer Feedback
-                        </p>
-                        <p className="mt-1 text-sm text-emerald-900">
-                          {checkIn.trainerFeedback}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -512,371 +787,72 @@ export default function WeeklyCheckIn() {
             )}
           </div>
         </div>
-      )}
 
-      {/* Progress Photos Tab */}
-      {activeTab === "photos" && (
-        <div className="space-y-8">
-          {/* Upload Section */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Upload Progress Photos
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Track your body transformation with front, back, or side photos
-            </p>
-
-            <form className="mt-6 space-y-6">
-              {/* Drag and Drop Zone */}
-              <div
-                onDragEnter={handlePhotoDrag}
-                onDragLeave={handlePhotoDrag}
-                onDragOver={handlePhotoDrag}
-                onDrop={handlePhotoDrop}
-                className={`relative rounded-3xl border-2 border-dashed px-8 py-12 text-center transition ${
-                  dragActive
-                    ? "border-sky-500 bg-sky-50"
-                    : "border-slate-300 bg-slate-50 hover:border-slate-400"
-                }`}
-              >
-                {photoPreview ? (
-                  <div className="space-y-4">
-                    <div className="relative aspect-square max-w-xs mx-auto overflow-hidden rounded-2xl">
-                      <img
-                        src={photoPreview}
-                        alt="Preview"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <p className="text-sm font-medium text-slate-900">
-                      Preview ready to upload
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-4xl">📸</p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Drop your photo here or click to select
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      PNG, JPG up to 10MB
-                    </p>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoFileChange}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                  disabled={uploadingPhoto}
-                />
-              </div>
-
-              {/* View Type Selection */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Photo View Type
-                </label>
-                <div className="mt-3 grid grid-cols-4 gap-3">
-                  {["front", "back", "side", "other"].map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setSelectedViewType(type)}
-                      className={`rounded-2xl px-4 py-3 text-xs font-semibold transition ${
-                        selectedViewType === type
-                          ? "bg-slate-950 text-white"
-                          : "border border-slate-200 bg-white text-slate-900 hover:border-slate-300"
-                      }`}
-                    >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {photoError && (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {photoError}
-                </div>
-              )}
-
-              {photoSuccess && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  ✓ Photo uploaded successfully!
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={handleUploadProgressPhoto}
-                disabled={uploadingPhoto || !photoPreview}
-                className="w-full rounded-full bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {uploadingPhoto ? "Uploading..." : "Upload Photo"}
-              </button>
-            </form>
-          </div>
-
-          {/* Photos Gallery */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm">
+        {/* Right column: Gallery & InBody records */}
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">
               Your Progress Gallery
             </h2>
-
             {photoLoading ? (
               <div className="mt-4 text-sm text-slate-600">Loading...</div>
             ) : progressPhotos.length > 0 ? (
-              <div className="mt-6 grid gap-4 grid-cols-2 md:grid-cols-3">
+              <div className="mt-4 grid gap-3 grid-cols-2">
                 {progressPhotos.map((photo) => (
                   <div
                     key={photo._id}
-                    className="group relative overflow-hidden rounded-2xl bg-slate-50 shadow-sm transition hover:shadow-md"
+                    className="overflow-hidden rounded-2xl bg-slate-50"
                   >
-                    <div className="aspect-square overflow-hidden bg-slate-100">
-                      <img
-                        src={photo.photoUrl}
-                        alt={photo.viewType}
-                        className="h-full w-full object-cover aspect-square rounded-2xl"
-                      />
-                    </div>
-                    <div className="absolute inset-0 bg-linear-to-t from-slate-950/40 to-transparent opacity-0 transition group-hover:opacity-100" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 transition group-hover:opacity-100">
-                      <p className="text-xs font-semibold uppercase text-sky-700">
-                        {photo.viewType}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(photo.date).toLocaleDateString()}
-                      </p>
-                      <button
-                        onClick={() => handleDeleteProgressPhoto(photo._id)}
-                        className="mt-2 w-full rounded-lg bg-rose-500 px-2 py-1 text-xs font-semibold text-white transition hover:bg-rose-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <img
+                      src={photo.photoUrl}
+                      alt={photo.viewType}
+                      className="h-40 w-full object-cover"
+                    />
                   </div>
                 ))}
               </div>
             ) : (
               <div className="mt-4 text-sm text-slate-500">
-                No photos uploaded yet. Start your transformation journey!
+                No photos uploaded yet.
               </div>
             )}
           </div>
-        </div>
-      )}
 
-      {/* InBody Scans Tab */}
-      {activeTab === "inbody" && (
-        <div className="space-y-8">
-          {/* Upload Section */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Upload InBody Scan
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Track your body composition metrics
-            </p>
-
-            <form
-              onSubmit={handleUploadInBodyRecord}
-              className="mt-6 space-y-6"
-            >
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Weight (kg)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={inBodyFormData.weight}
-                    onChange={(e) =>
-                      setInBodyFormData({
-                        ...inBodyFormData,
-                        weight: e.target.value,
-                      })
-                    }
-                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                    placeholder="75.5"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Fat % (optional)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    value={inBodyFormData.fatPercentage}
-                    onChange={(e) =>
-                      setInBodyFormData({
-                        ...inBodyFormData,
-                        fatPercentage: e.target.value,
-                      })
-                    }
-                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                    placeholder="25.5"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Muscle Mass (kg, optional)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={inBodyFormData.muscleMass}
-                    onChange={(e) =>
-                      setInBodyFormData({
-                        ...inBodyFormData,
-                        muscleMass: e.target.value,
-                      })
-                    }
-                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                    placeholder="55.0"
-                  />
-                </div>
-              </div>
-
-              {/* File Upload for Scan Image */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Upload Scan Image (optional)
-                </label>
-                <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  {inBodyPreview ? (
-                    <div className="space-y-3">
-                      <div className="relative aspect-video max-w-xs overflow-hidden rounded-lg">
-                        <img
-                          src={inBodyPreview}
-                          alt="InBody Preview"
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setInBodyPreview(null)}
-                        className="text-sm font-medium text-sky-600 hover:text-sky-700"
-                      >
-                        Change image
-                      </button>
-                    </div>
-                  ) : (
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleInBodyFileChange}
-                      className="w-full"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {inBodyError && (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {inBodyError}
-                </div>
-              )}
-
-              {inBodySuccess && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  ✓ InBody record uploaded successfully!
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={uploadingInBody || !inBodyFormData.weight}
-                className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {uploadingInBody ? "Uploading..." : "Save InBody Record"}
-              </button>
-            </form>
-          </div>
-
-          {/* Records History */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">
               Your InBody Records
             </h2>
-
             {inBodyLoading ? (
               <div className="mt-4 text-sm text-slate-600">Loading...</div>
             ) : inBodyRecords.length > 0 ? (
-              <div className="mt-6 space-y-3">
+              <div className="mt-4 space-y-3">
                 {inBodyRecords
                   .sort((a, b) => new Date(b.date) - new Date(a.date))
-                  .map((record, idx) => (
+                  .map((record) => (
                     <div
-                      key={idx}
-                      className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                      key={record._id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
                     >
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {new Date(record.date).toLocaleDateString()}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-4 text-xs">
-                          <div>
-                            <p className="text-slate-600">Weight</p>
-                            <p className="font-semibold text-slate-900">
-                              {record.weight} kg
-                            </p>
-                          </div>
-                          {record.fatPercentage && (
-                            <div>
-                              <p className="text-slate-600">Fat %</p>
-                              <p className="font-semibold text-slate-900">
-                                {record.fatPercentage}%
-                              </p>
-                            </div>
-                          )}
-                          {record.muscleMass && (
-                            <div>
-                              <p className="text-slate-600">Muscle Mass</p>
-                              <p className="font-semibold text-slate-900">
-                                {record.muscleMass} kg
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
-                          {record.uploadedBy === "member"
-                            ? "Member Upload"
-                            : "Trainer Entry"}
-                        </span>
-                        {record.uploadedBy === "member" && (
-                          <button
-                            onClick={() => {
-                              setDeleteTarget(record._id);
-                              setDeleteKind("inbody");
-                              setDeleteModalOpen(true);
-                            }}
-                            className="rounded-lg bg-rose-500 px-2 py-1 text-xs font-semibold text-white"
-                          >
-                            Delete
-                          </button>
-                        )}
+                      <p className="text-sm font-semibold text-slate-900">
+                        {new Date(record.date).toLocaleDateString()}
+                      </p>
+                      <div className="mt-2 text-xs text-slate-700">
+                        Weight: {record.weight || "-"} kg{" "}
+                        {record.fatPercentage
+                          ? ` • Fat: ${record.fatPercentage}%`
+                          : ""}
                       </div>
                     </div>
                   ))}
               </div>
             ) : (
               <div className="mt-4 text-sm text-slate-500">
-                No InBody records yet. Add your first scan!
+                No InBody records yet.
               </div>
             )}
           </div>
         </div>
-      )}
+      </div>
     </main>
   );
 }
