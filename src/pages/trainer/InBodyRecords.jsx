@@ -348,17 +348,17 @@ export default function InBodyRecords() {
               </option>
               {memberOptions.map((member) => (
                 <option key={member._id} value={member._id}>
-                  {member.name} â€” {member.email}
+                  {member.name} - {member.email}
                 </option>
               ))}
             </select>
             {selectedMember ? (
               <div>
                 <p className="mt-3 text-sm text-slate-400">
-                  {selectedMember.name} â€¢ {selectedMember.email}
+                  {selectedMember.name} • {selectedMember.email}
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
-                  Progress photos: {progressPhotos.length} â€¢ InBody records:{" "}
+                  Progress photos: {progressPhotos.length} • InBody records:{" "}
                   {memberInBodyRecords.length}
                 </p>
               </div>
@@ -387,7 +387,7 @@ export default function InBodyRecords() {
                   {checkIns.map((checkIn) => (
                     <div
                       key={checkIn._id}
-                      className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                      className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
@@ -483,54 +483,55 @@ export default function InBodyRecords() {
               )}
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-4">
+            <section className="grid gap-6 xl:grid-cols-[1.4fr_0.95fr]">
+              <div className="space-y-6">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
                       Weight
                     </p>
                     <p className="mt-4 text-3xl font-semibold text-slate-950">
                       {latestMetrics.weight
                         ? `${latestMetrics.weight} kg`
-                        : "â€”"}
+                        : "-"}
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
                       Body scale and weight progress.
                     </p>
                   </div>
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
                       Muscle mass
                     </p>
                     <p className="mt-4 text-3xl font-semibold text-slate-950">
                       {latestMetrics.skeletalMuscleMass
                         ? `${latestMetrics.skeletalMuscleMass} kg`
-                        : "â€”"}
+                        : "-"}
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
                       Skeletal muscle measurement from the most recent scan.
                     </p>
                   </div>
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
                       Body fat
                     </p>
                     <p className="mt-4 text-3xl font-semibold text-slate-950">
-                      {latestMetrics.bodyFatPercentage
+                      {latestMetrics.bodyFatPercentage !== undefined &&
+                      latestMetrics.bodyFatPercentage !== null
                         ? `${latestMetrics.bodyFatPercentage}%`
-                        : "â€”"}
+                        : "-"}
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
                       Percentage of fat mass from the latest composite scan.
                     </p>
                   </div>
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
                       BMR
                     </p>
                     <p className="mt-4 text-3xl font-semibold text-slate-950">
-                      {latestMetrics.bmr ? `${latestMetrics.bmr} kcal` : "â€”"}
+                      {latestMetrics.bmr ? `${latestMetrics.bmr} kcal` : "-"}
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
                       Resting metabolic rate estimated from the scan.
@@ -568,7 +569,7 @@ export default function InBodyRecords() {
                           return (
                             <div
                               key={item.label}
-                              className="space-y-2 rounded-3xl bg-slate-50 p-4"
+                              className="space-y-2 rounded-4xl bg-slate-100 p-4"
                             >
                               <p className="text-sm font-semibold text-slate-500">
                                 {item.label}
@@ -587,7 +588,7 @@ export default function InBodyRecords() {
                         })}
                       </div>
                     ) : (
-                      <div className="rounded-3xl bg-slate-50 p-6 text-sm text-slate-500">
+                      <div className="rounded-4xl bg-slate-100 p-6 text-sm text-slate-500">
                         Select a member and save a scan to populate the
                         analysis.
                       </div>
@@ -607,7 +608,7 @@ export default function InBodyRecords() {
                     </div>
                   </div>
                   {trendRecords.length ? (
-                    <div className="mt-6 overflow-hidden rounded-3xl bg-slate-50 p-4">
+                    <div className="mt-6 overflow-hidden rounded-4xl bg-slate-100 p-4">
                       <div className="relative h-64 w-full">
                         <svg viewBox="0 0 100 100" className="h-full w-full">
                           <defs>
@@ -687,28 +688,28 @@ export default function InBodyRecords() {
                         </svg>
                       </div>
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-3xl bg-slate-50 p-4">
+                        <div className="rounded-4xl bg-slate-100 p-4">
                           <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
                             Latest SMM
                           </p>
                           <p className="mt-2 text-2xl font-semibold text-slate-950">
-                            {latestMetrics.skeletalMuscleMass || "â€”"}
+                            {latestMetrics.skeletalMuscleMass ?? "-"}
                           </p>
                         </div>
-                        <div className="rounded-3xl bg-slate-50 p-4">
+                        <div className="rounded-4xl bg-slate-100 p-4">
                           <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
                             Latest PBF
                           </p>
                           <p className="mt-2 text-2xl font-semibold text-slate-950">
                             {latestMetrics.bodyFatPercentage
                               ? `${latestMetrics.bodyFatPercentage}%`
-                              : "â€”"}
+                              : "-"}
                           </p>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-6 rounded-3xl bg-slate-50 p-6 text-sm text-slate-500">
+                    <div className="mt-6 rounded-4xl bg-slate-100 p-6 text-sm text-slate-500">
                       Members with scan history will display trend lines here.
                     </div>
                   )}
@@ -767,17 +768,17 @@ export default function InBodyRecords() {
                               {new Date(record.date).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-4">
-                              {record.weight || "â€”"}
+                              {record.weight ?? "-"}
                             </td>
                             <td className="px-4 py-4">
-                              {record.skeletalMuscleMass || "â€”"}
+                              {record.skeletalMuscleMass ?? "-"}
                             </td>
                             <td className="px-4 py-4">
-                              {record.bodyFatPercentage || "â€”"}%
+                              {record.bodyFatPercentage ?? "-"}%
                             </td>
-                            <td className="px-4 py-4">{record.bmr || "â€”"}</td>
+                            <td className="px-4 py-4">{record.bmr ?? "-"}</td>
                             <td className="px-4 py-4">
-                              {record.visceralFatLevel || "â€”"}
+                              {record.visceralFatLevel ?? "-"}
                             </td>
                             <td className="px-4 py-4">
                               <span
