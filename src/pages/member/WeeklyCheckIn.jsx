@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
+import DeleteConfirmationModal from "../../components/DeleteConfirmationModal";
+import { uploadToCloudinary } from "../../utils/cloudinaryUpload";
 import { useAuth } from "../../context/authContextValue";
 
 export default function WeeklyCheckIn() {
@@ -30,6 +32,7 @@ export default function WeeklyCheckIn() {
   const [photoSuccess, setPhotoSuccess] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [selectedViewType, setSelectedViewType] = useState("front");
   const [dragActive, setDragActive] = useState(false);
 
@@ -40,12 +43,16 @@ export default function WeeklyCheckIn() {
   const [inBodySuccess, setInBodySuccess] = useState(false);
   const [uploadingInBody, setUploadingInBody] = useState(false);
   const [inBodyPreview, setInBodyPreview] = useState(null);
+  const [inBodyFile, setInBodyFile] = useState(null);
   const [inBodyFormData, setInBodyFormData] = useState({
     weight: "",
     fatPercentage: "",
     muscleMass: "",
     fileUrl: "",
   });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteKind, setDeleteKind] = useState(null); // 'photo' or 'inbody'
 
   // Fetch check-ins
   useEffect(() => {
@@ -128,6 +135,7 @@ export default function WeeklyCheckIn() {
     if (file) {
       const preview = URL.createObjectURL(file);
       setPhotoPreview(preview);
+      setPhotoFile(file);
     }
   };
 
@@ -149,6 +157,7 @@ export default function WeeklyCheckIn() {
     if (file) {
       const preview = URL.createObjectURL(file);
       setPhotoPreview(preview);
+      setPhotoFile(file);
     }
   };
 
@@ -163,8 +172,14 @@ export default function WeeklyCheckIn() {
     setPhotoSuccess(false);
 
     try {
+      // If a local file is selected, upload to Cloudinary first
+      let urlToSend = photoPreview;
+      if (photoFile) {
+        urlToSend = await uploadToCloudinary(photoFile);
+      }
+
       await api.post("/member/progress-photos", {
-        photoUrl: photoPreview,
+        photoUrl: urlToSend,
         viewType: selectedViewType,
       });
 
@@ -176,16 +191,47 @@ export default function WeeklyCheckIn() {
       setPhotoError(err?.response?.data?.message || "Failed to upload photo");
     } finally {
       setUploadingPhoto(false);
+      setPhotoFile(null);
     }
   };
 
-  const handleDeleteProgressPhoto = async (photoId) => {
-    try {
-      await api.delete(`/member/progress-photos/${photoId}`);
-      await fetchProgressPhotos();
-    } catch (err) {
-      setPhotoError("Failed to delete photo");
+  const handleDeleteProgressPhoto = (photoId) => {
+    setDeleteTarget(photoId);
+    setDeleteKind("photo");
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || !deleteKind) return setDeleteModalOpen(false);
+    const target = deleteTarget;
+    const kind = deleteKind;
+    setDeleteModalOpen(false);
+
+    if (kind === "photo") {
+      // optimistic UI
+      const prev = progressPhotos;
+      setProgressPhotos((cur) => cur.filter((p) => p._id !== target));
+      try {
+        await api.delete(`/member/progress-photos/${target}`);
+      } catch (err) {
+        setPhotoError("Failed to delete photo");
+        setProgressPhotos(prev);
+      }
     }
+
+    if (kind === "inbody") {
+      const prev = inBodyRecords;
+      setInBodyRecords((cur) => cur.filter((r) => String(r._id) !== String(target)));
+      try {
+        await api.delete(`/member/inbody-records/${target}`);
+      } catch (err) {
+        setInBodyError("Failed to delete record");
+        setInBodyRecords(prev);
+      }
+    }
+
+    setDeleteTarget(null);
+    setDeleteKind(null);
   };
 
   // ============ INBODY FUNCTIONS ============
@@ -208,6 +254,7 @@ export default function WeeklyCheckIn() {
     if (file) {
       const preview = URL.createObjectURL(file);
       setInBodyPreview(preview);
+      setInBodyFile(file);
     }
   };
 
@@ -218,6 +265,11 @@ export default function WeeklyCheckIn() {
     setInBodySuccess(false);
 
     try {
+      let fileUrlToSend = inBodyFormData.fileUrl || null;
+      if (inBodyFile) {
+        fileUrlToSend = await uploadToCloudinary(inBodyFile);
+      }
+
       await api.post("/member/inbody-records", {
         weight: Number(inBodyFormData.weight),
         fatPercentage: inBodyFormData.fatPercentage
@@ -226,7 +278,7 @@ export default function WeeklyCheckIn() {
         muscleMass: inBodyFormData.muscleMass
           ? Number(inBodyFormData.muscleMass)
           : null,
-        fileUrl: inBodyPreview || inBodyFormData.fileUrl,
+        fileUrl: fileUrlToSend,
       });
 
       setInBodySuccess(true);
@@ -237,6 +289,7 @@ export default function WeeklyCheckIn() {
         fileUrl: "",
       });
       setInBodyPreview(null);
+      setInBodyFile(null);
       await fetchInBodyRecords();
     } catch (err) {
       setInBodyError(err?.response?.data?.message || "Failed to upload record");
@@ -574,25 +627,25 @@ export default function WeeklyCheckIn() {
             {photoLoading ? (
               <div className="mt-4 text-sm text-slate-600">Loading...</div>
             ) : progressPhotos.length > 0 ? (
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid gap-4 grid-cols-2 md:grid-cols-3">
                 {progressPhotos.map((photo) => (
                   <div
                     key={photo._id}
-                    className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm transition hover:shadow-md"
+                    className="group relative overflow-hidden rounded-2xl bg-slate-50 shadow-sm transition hover:shadow-md"
                   >
                     <div className="aspect-square overflow-hidden bg-slate-100">
                       <img
                         src={photo.photoUrl}
                         alt={photo.viewType}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
+                        className="h-full w-full object-cover aspect-square rounded-2xl"
                       />
                     </div>
-                    <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 to-transparent opacity-0 transition group-hover:opacity-100" />
+                    <div className="absolute inset-0 bg-linear-to-t from-slate-950/40 to-transparent opacity-0 transition group-hover:opacity-100" />
                     <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 transition group-hover:opacity-100">
-                      <p className="text-xs font-semibold uppercase text-sky-200">
+                      <p className="text-xs font-semibold uppercase text-sky-700">
                         {photo.viewType}
                       </p>
-                      <p className="text-xs text-slate-300">
+                      <p className="text-xs text-slate-500">
                         {new Date(photo.date).toLocaleDateString()}
                       </p>
                       <button
@@ -794,11 +847,25 @@ export default function WeeklyCheckIn() {
                           )}
                         </div>
                       </div>
-                      <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
-                        {record.uploadedBy === "member"
-                          ? "Member Upload"
-                          : "Trainer Entry"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+                          {record.uploadedBy === "member"
+                            ? "Member Upload"
+                            : "Trainer Entry"}
+                        </span>
+                        {record.uploadedBy === "member" && (
+                          <button
+                            onClick={() => {
+                              setDeleteTarget(record._id);
+                              setDeleteKind("inbody");
+                              setDeleteModalOpen(true);
+                            }}
+                            className="rounded-lg bg-rose-500 px-2 py-1 text-xs font-semibold text-white"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
